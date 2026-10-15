@@ -22,7 +22,8 @@ class DownloadService {
     final folder = await StorageService.musicDir();
     final safe = StorageService.safeName('${result.artist} - ${result.title}');
     final outPath = p.join(folder.path, '$safe-${result.id}.mp3');
-    AppLog.info('download', '${result.source.name}: ${result.title} (${result.id})');
+    AppLog.info(
+        'download', '${result.source.name}: ${result.title} (${result.id})');
     if (result.source == SearchSource.jamendo) {
       onStage('Baixando');
       await dio.download(
@@ -38,7 +39,8 @@ class DownloadService {
     final rawPath = await youtube.cachedAudio(result.id, onProgress);
     AppLog.info('download', 'áudio em $rawPath');
     onStage('Convertendo para MP3');
-    final ok = await AudioEngine.convert(rawPath, outPath, const ExportOptions());
+    final ok =
+        await AudioEngine.convert(rawPath, outPath, const ExportOptions());
     if (!ok) throw Exception('Falha na conversão: ${FfmpegRunner.lastLog}');
     AppLog.info('download', 'concluído: $outPath');
     return outPath;

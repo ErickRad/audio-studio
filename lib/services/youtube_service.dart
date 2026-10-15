@@ -1,4 +1,3 @@
-
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -79,8 +78,7 @@ class YoutubeService {
 
     final items = <SearchResult>[];
 
-    for (final line
-        in const LineSplitter().convert('${result.stdout}')) {
+    for (final line in const LineSplitter().convert('${result.stdout}')) {
       if (line.trim().isEmpty) continue;
 
       final json = jsonDecode(line) as Map<String, dynamic>;
@@ -119,10 +117,8 @@ class YoutubeService {
   }
 
   String describe(Object e) {
-    final text = '$e'
-        .replaceFirst('Exception: ', '')
-        .replaceAll('\n', ' ')
-        .trim();
+    final text =
+        '$e'.replaceFirst('Exception: ', '').replaceAll('\n', ' ').trim();
 
     return text.length > 600 ? '${text.substring(0, 600)}…' : text;
   }
@@ -171,8 +167,7 @@ class YoutubeService {
     final existing = findFile(dir, 'yt_$videoId');
 
     if (existing != null) {
-      final duration =
-          await FfmpegRunner.probeDurationMs(existing.path);
+      final duration = await FfmpegRunner.probeDurationMs(existing.path);
 
       if (duration > 0) {
         AppLog.info('youtube', 'usando cache: ${existing.path}');
@@ -264,9 +259,7 @@ class YoutubeService {
     List<String> args,
   ) async {
     try {
-      final path = executable == 'yt-dlp'
-          ? await _ytDlpPath()
-          : executable;
+      final path = executable == 'yt-dlp' ? await _ytDlpPath() : executable;
 
       final result = await Process.run(path, args);
 
@@ -343,8 +336,7 @@ class YoutubeService {
     String outputStem,
     void Function(double) onProgress,
   ) async {
-    final manifest = await yt.videos.streamsClient
-        .getManifest(videoId);
+    final manifest = await yt.videos.streamsClient.getManifest(videoId);
 
     final streams = manifest.audioOnly.toList()
       ..sort((a, b) => b.bitrate.compareTo(a.bitrate));
@@ -377,8 +369,7 @@ class YoutubeService {
       await sink.flush();
       await sink.close();
 
-      if (!await outputFile.exists() ||
-          await outputFile.length() == 0) {
+      if (!await outputFile.exists() || await outputFile.length() == 0) {
         throw Exception('O download do áudio resultou em arquivo vazio.');
       }
 
@@ -475,9 +466,7 @@ class YoutubeService {
           ? messages.sublist(messages.length - 3)
           : messages;
 
-      final detail = tail.isEmpty
-          ? 'código de saída $code'
-          : tail.join(' / ');
+      final detail = tail.isEmpty ? 'código de saída $code' : tail.join(' / ');
 
       throw Exception(detail);
     }

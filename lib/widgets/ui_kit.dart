@@ -52,7 +52,8 @@ class ToolButton extends StatelessWidget {
                     child: SizedBox(
                       width: 14,
                       height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: tint),
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: tint),
                     ),
                   )
                 : Icon(icon, size: iconSize, color: tint),
@@ -112,14 +113,18 @@ class AppButton extends StatelessWidget {
                 SizedBox(
                   width: 14,
                   height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: foreground),
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: foreground),
                 )
               else if (icon != null)
                 Icon(icon, size: 15, color: foreground),
               if (busy || icon != null) const SizedBox(width: 6),
               Text(
                 label,
-                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: foreground),
+                style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w500,
+                    color: foreground),
               ),
             ],
           ),
@@ -183,12 +188,17 @@ class AppTextField extends StatelessWidget {
           fillColor: AppColors.background,
           hintText: hint,
           hintStyle: const TextStyle(fontSize: 13, color: AppColors.textDim),
-          prefixIcon: prefixIcon == null ? null : Icon(prefixIcon, size: 16, color: AppColors.textDim),
-          prefixIconConstraints: const BoxConstraints(minWidth: 32, minHeight: 30),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          prefixIcon: prefixIcon == null
+              ? null
+              : Icon(prefixIcon, size: 16, color: AppColors.textDim),
+          prefixIconConstraints:
+              const BoxConstraints(minWidth: 32, minHeight: 30),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           border: border,
           enabledBorder: border,
-          focusedBorder: border.copyWith(borderSide: const BorderSide(color: AppColors.accent)),
+          focusedBorder: border.copyWith(
+              borderSide: const BorderSide(color: AppColors.accent)),
         ),
       ),
     );
@@ -230,8 +240,12 @@ class SegmentedControl<T> extends StatelessWidget {
                       item.$2,
                       style: TextStyle(
                         fontSize: 12.5,
-                        fontWeight: item.$1 == value ? FontWeight.w600 : FontWeight.w400,
-                        color: item.$1 == value ? AppColors.text : AppColors.textDim,
+                        fontWeight: item.$1 == value
+                            ? FontWeight.w600
+                            : FontWeight.w400,
+                        color: item.$1 == value
+                            ? AppColors.text
+                            : AppColors.textDim,
                       ),
                     ),
                   ),
@@ -290,7 +304,8 @@ class SidebarTabs extends StatelessWidget {
                       items[i].$2,
                       style: TextStyle(
                         fontSize: 12.5,
-                        fontWeight: i == index ? FontWeight.w600 : FontWeight.w400,
+                        fontWeight:
+                            i == index ? FontWeight.w600 : FontWeight.w400,
                         color: i == index ? AppColors.text : AppColors.textDim,
                       ),
                     ),
@@ -342,7 +357,9 @@ class LabeledSlider extends StatelessWidget {
           children: [
             SizedBox(
               width: 76,
-              child: Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textDim)),
+              child: Text(label,
+                  style:
+                      const TextStyle(fontSize: 12, color: AppColors.textDim)),
             ),
             Expanded(
               child: Slider(
@@ -444,7 +461,8 @@ class CheckRow extends StatelessWidget {
                 visualDensity: VisualDensity.compact,
                 activeColor: AppColors.accent,
                 side: const BorderSide(color: AppColors.textDim, width: 1.3),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(3)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(3)),
               ),
             ),
             const SizedBox(width: 8),
@@ -490,7 +508,9 @@ class AppDropdown<T> extends StatelessWidget {
           style: const TextStyle(fontSize: 12.5, color: AppColors.text),
           hint: hint == null
               ? null
-              : Text(hint!, style: const TextStyle(fontSize: 12.5, color: AppColors.textDim)),
+              : Text(hint!,
+                  style: const TextStyle(
+                      fontSize: 12.5, color: AppColors.textDim)),
           items: [
             for (final item in items)
               DropdownMenuItem<T>(
@@ -521,7 +541,9 @@ class FormRow extends StatelessWidget {
         children: [
           SizedBox(
             width: 96,
-            child: Text(label, style: const TextStyle(fontSize: 12.5, color: AppColors.textDim)),
+            child: Text(label,
+                style:
+                    const TextStyle(fontSize: 12.5, color: AppColors.textDim)),
           ),
           Expanded(child: child),
         ],
@@ -561,7 +583,9 @@ class AppDialog extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              Text(title,
+                  style: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w600)),
               const SizedBox(height: 14),
               Flexible(child: SingleChildScrollView(child: child)),
               const SizedBox(height: 18),
@@ -595,7 +619,8 @@ Future<String?> promptText(
       title: title,
       width: 340,
       actions: [
-        AppButton(label: 'Cancelar', onPressed: () => Navigator.pop(dialogContext)),
+        AppButton(
+            label: 'Cancelar', onPressed: () => Navigator.pop(dialogContext)),
         AppButton(
           label: confirmLabel,
           primary: true,
@@ -624,14 +649,17 @@ Future<bool> confirmDialog(
       title: title,
       width: 360,
       actions: [
-        AppButton(label: 'Cancelar', onPressed: () => Navigator.pop(dialogContext, false)),
+        AppButton(
+            label: 'Cancelar',
+            onPressed: () => Navigator.pop(dialogContext, false)),
         AppButton(
           label: confirmLabel,
           primary: true,
           onPressed: () => Navigator.pop(dialogContext, true),
         ),
       ],
-      child: Text(message, style: const TextStyle(fontSize: 12.5, color: AppColors.textDim)),
+      child: Text(message,
+          style: const TextStyle(fontSize: 12.5, color: AppColors.textDim)),
     ),
   );
   return result == true;
@@ -667,7 +695,8 @@ class MediaRow extends StatelessWidget {
         height: 54,
         padding: const EdgeInsets.fromLTRB(10, 0, 6, 0),
         decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: AppColors.line.withAlpha(120))),
+          border:
+              Border(bottom: BorderSide(color: AppColors.line.withAlpha(120))),
         ),
         child: Stack(
           children: [
@@ -691,7 +720,8 @@ class MediaRow extends StatelessWidget {
                         subtitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 11.5, color: AppColors.textDim),
+                        style: const TextStyle(
+                            fontSize: 11.5, color: AppColors.textDim),
                       ),
                     ],
                   ),
@@ -771,7 +801,8 @@ Future<void> showErrorDialog(
       ],
       child: SelectableText(
         message,
-        style: const TextStyle(fontSize: 12, color: AppColors.textDim, height: 1.45),
+        style: const TextStyle(
+            fontSize: 12, color: AppColors.textDim, height: 1.45),
       ),
     ),
   );

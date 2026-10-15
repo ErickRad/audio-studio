@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -30,12 +31,22 @@ class _TimelineViewState extends State<TimelineView> {
 
   final ScrollController hScroll = ScrollController();
   final ScrollController vScroll = ScrollController();
+  final GlobalKey _timelineViewportKey = GlobalKey();
+  Timer? _edgeScrollTimer;
+  String? _draggingClipId;
+  Offset _lastDragGlobal = Offset.zero;
+  double _dragStartScrollOffset = 0;
+  double _lastAppliedDragMs = 0;
   ProjectController? attached;
   ClipDragMode dragMode = ClipDragMode.move;
   Offset dragStart = Offset.zero;
   int dragOriginMs = 0;
   int dragOriginTrack = 0;
   double trimCarry = 0;
+  bool rulerMouseDragging = false;
+  bool _rulerPointerPressed = false;
+  bool _rulerPointerMoved = false;
+  Offset _rulerPointerDownGlobal = Offset.zero;
 
   @override
   void didChangeDependencies() {
@@ -51,43 +62,92 @@ class _TimelineViewState extends State<TimelineView> {
   @override
   void dispose() {
     attached?.playhead.removeListener(followPlayhead);
+    _stopEdgeScroll();
     hScroll.dispose();
     vScroll.dispose();
     super.dispose();
   }
 
   void followPlayhead() {
+    // Mantém o playhead visível tanto durante a reprodução quanto quando o
+    // usuário o move com as setas do teclado ou clicando na régua.
     final c = attached;
-    if (c == null || !c.playing || !hScroll.hasClients) return;
-    final x = sidePad + c.playhead.value * c.pxPerSecond / 1000;
-    final pos = hScroll.position;
-    if (x > pos.pixels + pos.viewportDimension - 48 || x < pos.pixels) {
-      hScroll.jumpTo((x - 48).clamp(0.0, pos.maxScrollExtent).toDouble());
+    if (c == null || !hScroll.hasClients) return;
+
+    final position = hScroll.position;
+    if (!position.hasContentDimensions || position.viewportDimension <= 0) {
+      return;
+    }
+
+    final playheadX = sidePad + c.playhead.value * c.pxPerSecond / 1000;
+    final visibleLeft = position.pixels;
+    final visibleRight = visibleLeft + position.viewportDimension;
+    const margin = 56.0;
+
+    double? target;
+    if (playheadX < visibleLeft + margin) {
+      target = playheadX - margin;
+    } else if (playheadX > visibleRight - margin) {
+      target = playheadX - position.viewportDimension + margin;
+    }
+
+    if (target == null) return;
+    target = target.clamp(0.0, position.maxScrollExtent).toDouble();
+    if ((target - position.pixels).abs() > 1) {
+      hScroll.jumpTo(target);
     }
   }
 
-  void onPointerSignal(PointerSignalEvent event, ProjectController c) {
-    if (event is! PointerScrollEvent || !hScroll.hasClients) return;
-    final keys = HardwareKeyboard.instance;
-    if (keys.isControlPressed || keys.isMetaPressed) {
-      final cursorX = event.localPosition.dx;
-      final anchorMs = (hScroll.offset + cursorX - sidePad) / (c.pxPerSecond / 1000);
-      c.zoom(event.scrollDelta.dy < 0 ? 1.15 : 1 / 1.15);
-      final target = anchorMs * (c.pxPerSecond / 1000) + sidePad - cursorX;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!hScroll.hasClients) return;
-        hScroll.jumpTo(target.clamp(0.0, hScroll.position.maxScrollExtent).toDouble());
-      });
+  
+  double clampScrollOffset(ScrollController controller, double target) {
+    if (!controller.hasClients) return 0;
+    final position = controller.position;
+    return target.clamp(0.0, position.maxScrollExtent).toDouble();
+  }
+
+  void scrollTimeline(double delta) {
+    if (!hScroll.hasClients || delta == 0) return;
+    final position = hScroll.position;
+    if (!position.hasContentDimensions || position.maxScrollExtent <= 0) {
       return;
     }
-    final dx = event.scrollDelta.dx;
-    final dy = event.scrollDelta.dy;
-    final verticalOverflow = vScroll.hasClients && vScroll.position.maxScrollExtent > 0;
-    if (keys.isShiftPressed || dx != 0 || !verticalOverflow) {
-      final delta = dx != 0 ? dx : dy;
-      hScroll.jumpTo((hScroll.offset + delta).clamp(0.0, hScroll.position.maxScrollExtent).toDouble());
-    } else {
-      vScroll.jumpTo((vScroll.offset + dy).clamp(0.0, vScroll.position.maxScrollExtent).toDouble());
+
+    // Não bloqueia a navegação ao atingir uma extremidade: o delta inverso
+    // volta a reduzir/aumentar o offset normalmente.
+    final target = clampScrollOffset(hScroll, position.pixels + delta);
+    if ((target - position.pixels).abs() > 0.1) {
+      hScroll.jumpTo(target);
+    }
+  }
+
+  void scrollTracks(double delta) {
+    if (!vScroll.hasClients || delta == 0) return;
+    final position = vScroll.position;
+    if (!position.hasContentDimensions || position.maxScrollExtent <= 0) {
+      return;
+    }
+    final target = clampScrollOffset(vScroll, position.pixels + delta);
+    if ((target - position.pixels).abs() > 0.1) {
+      vScroll.jumpTo(target);
+    }
+  }
+
+  void onPointerPanZoomUpdate(PointerPanZoomUpdateEvent event) {
+    // Trackpads de notebooks podem emitir PanZoom em vez de ScrollEvent.
+    // O offset é inverso ao movimento dos dedos: arrastar para a esquerda
+    // revela conteúdo mais à direita, como em editores de vídeo.
+    final pan = event.panDelta;
+    if (pan.dx.abs() > 0) {
+      scrollTimeline(-pan.dx);
+      return;
+    }
+
+    if (pan.dy.abs() > 0) {
+      if (vScroll.hasClients && vScroll.position.maxScrollExtent > 0) {
+        scrollTracks(-pan.dy);
+      } else {
+        scrollTimeline(-pan.dy);
+      }
     }
   }
 
@@ -100,10 +160,15 @@ class _TimelineViewState extends State<TimelineView> {
     double edge,
     Offset global,
   ) {
+    Focus.of(context).requestFocus();
     c.select(clip.id);
     c.setActiveTrack(trackIndex);
     c.beginEdit();
     dragStart = global;
+    _lastDragGlobal = global;
+    _dragStartScrollOffset = hScroll.hasClients ? hScroll.offset : 0;
+    _lastAppliedDragMs = 0;
+    _draggingClipId = clip.id;
     dragOriginMs = clip.startMs;
     dragOriginTrack = trackIndex;
     trimCarry = 0;
@@ -114,28 +179,92 @@ class _TimelineViewState extends State<TimelineView> {
     } else {
       dragMode = ClipDragMode.move;
     }
+    _startEdgeScroll(c, clip.id);
   }
 
-  void updateDrag(ProjectController c, String id, DragUpdateDetails d, double pxPerMs) {
+  void updateDrag(
+      ProjectController c, String id, DragUpdateDetails d, double pxPerMs) {
+    _lastDragGlobal = d.globalPosition;
+    _applyDragPosition(c, id, d.globalPosition, pxPerMs);
+  }
+
+  void _applyDragPosition(
+    ProjectController c,
+    String id,
+    Offset global,
+    double pxPerMs,
+  ) {
+    // Inclui o deslocamento provocado pelo auto-scroll. Assim, manter o
+    // ponteiro parado na borda continua movendo o clipe pela timeline.
+    final scrollDelta = hScroll.hasClients
+        ? hScroll.offset - _dragStartScrollOffset
+        : 0.0;
+    final timelineDeltaMs =
+        ((global.dx - dragStart.dx + scrollDelta) / pxPerMs).roundToDouble();
+
     if (dragMode == ClipDragMode.move) {
-      final total = d.globalPosition - dragStart;
       c.moveClip(
         id,
-        dragOriginMs + (total.dx / pxPerMs).round(),
-        dragOriginTrack + (total.dy / trackHeight).round(),
+        dragOriginMs + timelineDeltaMs.round(),
+        dragOriginTrack + ((global.dy - dragStart.dy) / trackHeight).round(),
         (8 / pxPerMs).round(),
       );
+      _lastAppliedDragMs = timelineDeltaMs;
       return;
     }
-    trimCarry += d.delta.dx;
-    final ms = (trimCarry / pxPerMs).round();
-    if (ms == 0) return;
-    trimCarry -= ms * pxPerMs;
+
+    final deltaMs = (timelineDeltaMs - _lastAppliedDragMs).round();
+    if (deltaMs == 0) return;
+    _lastAppliedDragMs = timelineDeltaMs;
     if (dragMode == ClipDragMode.trimLeft) {
-      c.trimLeft(id, ms);
+      c.trimLeft(id, deltaMs);
     } else {
-      c.trimRight(id, ms);
+      c.trimRight(id, deltaMs);
     }
+  }
+
+  void _startEdgeScroll(ProjectController c, String clipId) {
+    _edgeScrollTimer?.cancel();
+    _edgeScrollTimer = null;
+    _edgeScrollTimer = Timer.periodic(const Duration(milliseconds: 16), (_) {
+      if (!mounted || _draggingClipId != clipId || !hScroll.hasClients) {
+        _stopEdgeScroll();
+        return;
+      }
+      final renderObject =
+          _timelineViewportKey.currentContext?.findRenderObject();
+      if (renderObject is! RenderBox || !renderObject.hasSize) return;
+
+      final local = renderObject.globalToLocal(_lastDragGlobal);
+      final viewportWidth = renderObject.size.width;
+      const edgeZone = 52.0;
+      double delta = 0;
+
+      if (local.dx < edgeZone) {
+        final intensity = ((edgeZone - local.dx) / edgeZone).clamp(0.15, 1.8);
+        delta = -10 * intensity;
+      } else if (local.dx > viewportWidth - edgeZone) {
+        final intensity =
+            ((local.dx - (viewportWidth - edgeZone)) / edgeZone)
+                .clamp(0.15, 1.8);
+        delta = 10 * intensity;
+      }
+
+      if (delta != 0) {
+        final before = hScroll.offset;
+        scrollTimeline(delta);
+        if ((hScroll.offset - before).abs() > 0.01) {
+          _applyDragPosition(c, clipId, _lastDragGlobal,
+              c.pxPerSecond / 1000);
+        }
+      }
+    });
+  }
+
+  void _stopEdgeScroll() {
+    _edgeScrollTimer?.cancel();
+    _edgeScrollTimer = null;
+    _draggingClipId = null;
   }
 
   Future<void> showClipMenu(
@@ -156,16 +285,22 @@ class _TimelineViewState extends State<TimelineView> {
         Offset.zero & overlay.size,
       ),
       items: [
-        const PopupMenuItem(value: 'split', height: 30, child: Text('Dividir aqui')),
-        const PopupMenuItem(value: 'duplicate', height: 30, child: Text('Duplicar')),
+        const PopupMenuItem(
+            value: 'split', height: 30, child: Text('Dividir aqui')),
+        const PopupMenuItem(
+            value: 'duplicate', height: 30, child: Text('Duplicar')),
         PopupMenuItem(
           value: 'mute',
           height: 30,
           child: Text(clip.muted ? 'Reativar o som' : 'Silenciar'),
         ),
         const PopupMenuDivider(height: 8),
-        const PopupMenuItem(value: 'delete', height: 30, child: Text('Excluir')),
-        const PopupMenuItem(value: 'ripple', height: 30, child: Text('Excluir e fechar o espaço')),
+        const PopupMenuItem(
+            value: 'delete', height: 30, child: Text('Excluir')),
+        const PopupMenuItem(
+            value: 'ripple',
+            height: 30,
+            child: Text('Excluir e fechar o espaço')),
       ],
     );
     switch (choice) {
@@ -183,8 +318,10 @@ class _TimelineViewState extends State<TimelineView> {
     }
   }
 
-  Future<void> renameTrack(ProjectController c, int index, TimelineTrack track) async {
-    final name = await promptText(context, title: 'Nome da faixa', initial: track.name);
+  Future<void> renameTrack(
+      ProjectController c, int index, TimelineTrack track) async {
+    final name =
+        await promptText(context, title: 'Nome da faixa', initial: track.name);
     if (name != null && name.isNotEmpty) c.renameTrack(index, name);
   }
 
@@ -202,7 +339,8 @@ class _TimelineViewState extends State<TimelineView> {
         decoration: BoxDecoration(
           color: active ? AppColors.raised : AppColors.panel,
           border: Border(
-            left: BorderSide(color: active ? color : color.withAlpha(110), width: 3),
+            left: BorderSide(
+                color: active ? color : color.withAlpha(110), width: 3),
             bottom: const BorderSide(color: AppColors.line),
             right: const BorderSide(color: AppColors.line),
           ),
@@ -234,7 +372,8 @@ class _TimelineViewState extends State<TimelineView> {
                       child: Icon(
                         track.muted ? Icons.volume_off : Icons.volume_up,
                         size: 15,
-                        color: track.muted ? AppColors.danger : AppColors.textDim,
+                        color:
+                            track.muted ? AppColors.danger : AppColors.textDim,
                       ),
                     ),
                   ),
@@ -242,16 +381,29 @@ class _TimelineViewState extends State<TimelineView> {
               ],
             ),
             SizedBox(
-              height: 20,
+              height: 32,
               child: Row(
                 children: [
                   Expanded(
-                    child: Slider(
-                      value: track.volume.clamp(0.0, 1.5).toDouble(),
-                      min: 0,
-                      max: 1.5,
-                      onChangeStart: (_) => c.beginEdit(),
-                      onChanged: (v) => c.setTrackVolume(index, v),
+                    child: SliderTheme(
+                      data: SliderTheme.of(context).copyWith(
+                        trackHeight: 2,
+                        thumbShape: const RoundSliderThumbShape(
+                          enabledThumbRadius: 5,
+                        ),
+                        overlayShape: SliderComponentShape.noOverlay,
+                        trackShape: const RoundedRectSliderTrackShape(),
+                      ),
+                      child: Slider(
+                        value: track.volume.clamp(0.0, 1.5).toDouble(),
+                        min: 0,
+                        max: 1.5,
+                        padding: EdgeInsets.zero,
+                        onChangeStart: (_) => c.beginEdit(),
+                        onChanged: (value) {
+                          c.setTrackVolume(index, value);
+                        },
+                      ),
                     ),
                   ),
                   SizedBox(
@@ -259,19 +411,24 @@ class _TimelineViewState extends State<TimelineView> {
                     child: Text(
                       '${(track.volume * 100).round()}%',
                       textAlign: TextAlign.end,
-                      style: monoStyle.copyWith(fontSize: 10.5, color: AppColors.textDim),
+                      style: monoStyle.copyWith(
+                        fontSize: 10.5,
+                        color: AppColors.textDim,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
+
           ],
         ),
       ),
     );
   }
 
-  Widget buildLane(ProjectController c, int index, double width, double pxPerMs) {
+  Widget buildLane(
+      ProjectController c, int index, double width, double pxPerMs) {
     return Positioned(
       top: rulerHeight + index * trackHeight,
       left: 0,
@@ -280,6 +437,7 @@ class _TimelineViewState extends State<TimelineView> {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTapDown: (d) {
+          Focus.of(context).requestFocus();
           c.setActiveTrack(index);
           c.clearSelection();
           c.seek(((d.localPosition.dx - sidePad) / pxPerMs).round());
@@ -294,22 +452,28 @@ class _TimelineViewState extends State<TimelineView> {
     );
   }
 
-  Widget buildClip(ProjectController c, AudioClip clip, int ti, double pxPerMs) {
+  Widget buildClip(
+      ProjectController c, AudioClip clip, int ti, double pxPerMs) {
     final selected = clip.id == c.selectedId;
     final width = max(6.0, clip.durationMs * pxPerMs);
     final color = AppColors.trackColors[ti % AppColors.trackColors.length];
     final peaks = c.peaks[clip.path] ?? const <double>[];
     final edge = min(edgeWidth, width / 3);
     final tags = <String>[];
-    if ((clip.speed - 1).abs() > 0.001) tags.add('${clip.speed.toStringAsFixed(2)}x');
+    if ((clip.speed - 1).abs() > 0.001)
+      tags.add('${clip.speed.toStringAsFixed(2)}x');
     if (clip.pitch.abs() > 0.001) {
-      tags.add('${clip.pitch > 0 ? '+' : ''}${clip.pitch.toStringAsFixed(0)} st');
+      tags.add(
+          '${clip.pitch > 0 ? '+' : ''}${clip.pitch.toStringAsFixed(0)} st');
     }
     if (clip.reversed) tags.add('rev');
-    final title = tags.isEmpty ? clip.label : '${clip.label}  ·  ${tags.join('  ')}';
+    final title =
+        tags.isEmpty ? clip.label : '${clip.label}  ·  ${tags.join('  ')}';
     Widget edgeZone() => MouseRegion(
           cursor: SystemMouseCursors.resizeLeftRight,
-          child: ColoredBox(color: selected ? Colors.white.withAlpha(55) : Colors.transparent),
+          child: ColoredBox(
+              color:
+                  selected ? Colors.white.withAlpha(55) : Colors.transparent),
         );
     return Positioned(
       key: ValueKey(clip.id),
@@ -322,17 +486,30 @@ class _TimelineViewState extends State<TimelineView> {
         child: MouseRegion(
           cursor: SystemMouseCursors.grab,
           child: GestureDetector(
+            // Gestos de pan do touchpad pertencem exclusivamente à navegação
+            // da timeline (Listener pai). Não deixe o recognizer do clipe
+            // interpretar o mesmo gesto de dois dedos como arrasto do clipe.
+            // Mouse/touch continuam podendo selecionar e arrastar normalmente.
+            supportedDevices: const {
+              PointerDeviceKind.mouse,
+              PointerDeviceKind.touch,
+              PointerDeviceKind.stylus,
+              PointerDeviceKind.invertedStylus,
+            },
             dragStartBehavior: DragStartBehavior.down,
             onTapUp: (d) {
+              Focus.of(context).requestFocus();
               c.select(clip.id);
               c.setActiveTrack(ti);
               c.seek(clip.startMs + (d.localPosition.dx / pxPerMs).round());
             },
-            onSecondaryTapDown: (d) =>
-                showClipMenu(c, clip, ti, d.globalPosition, d.localPosition.dx / pxPerMs),
-            onPanStart: (d) =>
-                startDrag(c, clip, ti, d.localPosition.dx, width, edge, d.globalPosition),
+            onSecondaryTapDown: (d) => showClipMenu(
+                c, clip, ti, d.globalPosition, d.localPosition.dx / pxPerMs),
+            onPanStart: (d) => startDrag(
+                c, clip, ti, d.localPosition.dx, width, edge, d.globalPosition),
             onPanUpdate: (d) => updateDrag(c, clip.id, d, pxPerMs),
+            onPanEnd: (_) => _stopEdgeScroll(),
+            onPanCancel: _stopEdgeScroll,
             child: Container(
               decoration: BoxDecoration(
                 color: color.withAlpha(selected ? 95 : 66),
@@ -375,8 +552,18 @@ class _TimelineViewState extends State<TimelineView> {
                         ),
                       ),
                     ),
-                    Positioned(left: 0, top: 0, bottom: 0, width: edge, child: edgeZone()),
-                    Positioned(right: 0, top: 0, bottom: 0, width: edge, child: edgeZone()),
+                    Positioned(
+                        left: 0,
+                        top: 0,
+                        bottom: 0,
+                        width: edge,
+                        child: edgeZone()),
+                    Positioned(
+                        right: 0,
+                        top: 0,
+                        bottom: 0,
+                        width: edge,
+                        child: edgeZone()),
                   ],
                 ),
               ),
@@ -387,9 +574,85 @@ class _TimelineViewState extends State<TimelineView> {
     );
   }
 
+  void seekFromRulerPointer(
+    PointerEvent event,
+    ProjectController c,
+    double pxPerMs,
+  ) {
+    final ms = ((event.localPosition.dx - sidePad) / pxPerMs).round();
+    c.seek(ms.clamp(0, c.projectEndMs).toInt());
+  }
+
+  void onRulerPointerDown(
+    PointerDownEvent event,
+    ProjectController c,
+    double pxPerMs,
+  ) {
+    // Não reposiciona o playhead no pointer-down. Em alguns notebooks o
+    // início de um gesto no touchpad pode preceder o evento de scroll; adiar
+    // a ação evita saltos antes de sabermos se é clique/arrasto ou pan-zoom.
+    if (event.kind != PointerDeviceKind.mouse ||
+        (event.buttons & kPrimaryMouseButton) == 0) {
+      return;
+    }
+    Focus.of(context).requestFocus();
+    _rulerPointerPressed = true;
+    _rulerPointerMoved = false;
+    _rulerPointerDownGlobal = event.position;
+    rulerMouseDragging = false;
+  }
+
+  void onRulerPointerMove(
+    PointerMoveEvent event,
+    ProjectController c,
+    double pxPerMs,
+  ) {
+    if (!_rulerPointerPressed ||
+        event.kind != PointerDeviceKind.mouse ||
+        (event.buttons & kPrimaryMouseButton) == 0) {
+      return;
+    }
+
+    if (!_rulerPointerMoved &&
+        (event.position - _rulerPointerDownGlobal).distance < 2.0) {
+      return;
+    }
+
+    _rulerPointerMoved = true;
+    rulerMouseDragging = true;
+    seekFromRulerPointer(event, c, pxPerMs);
+  }
+
+  void onRulerPointerUp(
+    PointerEvent event,
+    ProjectController c,
+    double pxPerMs,
+  ) {
+    if (event.kind != PointerDeviceKind.mouse) return;
+
+    // Clique simples posiciona o playhead ao soltar. Arrasto já atualizou
+    // continuamente em onPointerMove. Pan-zoom do touchpad cancela o estado.
+    if (_rulerPointerPressed && !_rulerPointerMoved) {
+      seekFromRulerPointer(event, c, pxPerMs);
+    }
+    _rulerPointerPressed = false;
+    _rulerPointerMoved = false;
+    rulerMouseDragging = false;
+  }
+
+  void onPointerPanZoomStart(PointerPanZoomStartEvent event) {
+    // Dois dedos no touchpad são exclusivamente navegação da timeline:
+    // nunca devem ser interpretados como clique/arrasto do playhead.
+    _rulerPointerPressed = false;
+    _rulerPointerMoved = true;
+    rulerMouseDragging = false;
+  }
+
   Widget buildLanes(ProjectController c, double pxPerMs, double contentHeight) {
     return Listener(
-      onPointerSignal: (e) => onPointerSignal(e, c),
+      key: _timelineViewportKey,
+      onPointerPanZoomStart: onPointerPanZoomStart,
+      onPointerPanZoomUpdate: onPointerPanZoomUpdate,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final contentWidth = max(
@@ -397,17 +660,19 @@ class _TimelineViewState extends State<TimelineView> {
             (c.projectEndMs + 15000) * pxPerMs + sidePad * 2,
           );
           final children = <Widget>[
-            for (var i = 0; i < c.tracks.length; i++) buildLane(c, i, contentWidth, pxPerMs),
+            for (var i = 0; i < c.tracks.length; i++)
+              buildLane(c, i, contentWidth, pxPerMs),
             Positioned(
               top: 0,
               left: 0,
               width: contentWidth,
               height: rulerHeight,
-              child: GestureDetector(
+              child: Listener(
                 behavior: HitTestBehavior.opaque,
-                onTapDown: (d) => c.seek(((d.localPosition.dx - sidePad) / pxPerMs).round()),
-                onHorizontalDragUpdate: (d) =>
-                    c.seek(((d.localPosition.dx - sidePad) / pxPerMs).round()),
+                onPointerDown: (e) => onRulerPointerDown(e, c, pxPerMs),
+                onPointerMove: (e) => onRulerPointerMove(e, c, pxPerMs),
+                onPointerUp: (e) => onRulerPointerUp(e, c, pxPerMs),
+                onPointerCancel: (e) => onRulerPointerUp(e, c, pxPerMs),
                 child: Container(
                   decoration: const BoxDecoration(
                     color: AppColors.panel,
@@ -425,7 +690,8 @@ class _TimelineViewState extends State<TimelineView> {
               ),
             ),
             for (var ti = 0; ti < c.tracks.length; ti++)
-              for (final clip in c.tracks[ti].clips) buildClip(c, clip, ti, pxPerMs),
+              for (final clip in c.tracks[ti].clips)
+                buildClip(c, clip, ti, pxPerMs),
             if (c.projectEndMs == 0)
               Positioned(
                 top: rulerHeight,
@@ -448,7 +714,8 @@ class _TimelineViewState extends State<TimelineView> {
                 top: 0,
                 height: contentHeight,
                 width: 1,
-                child: const IgnorePointer(child: ColoredBox(color: AppColors.playhead)),
+                child: const IgnorePointer(
+                    child: ColoredBox(color: AppColors.playhead)),
               ),
             ),
           ];
@@ -501,7 +768,8 @@ class _TimelineViewState extends State<TimelineView> {
                     ),
                     child: const Text(
                       'Faixas',
-                      style: TextStyle(fontSize: 11.5, color: AppColors.textDim),
+                      style:
+                          TextStyle(fontSize: 11.5, color: AppColors.textDim),
                     ),
                   ),
                   for (var i = 0; i < c.tracks.length; i++) buildHeader(c, i),

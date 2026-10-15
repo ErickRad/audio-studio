@@ -24,6 +24,8 @@ class StorageService {
     return File(p.join(base.path, 'project.json'));
   }
 
-  static String safeName(String value) =>
-      value.replaceAll(RegExp(r'[\\/:*?"<>|]'), '').replaceAll(RegExp(r'\s+'), ' ').trim();
+  static String safeName(String value) => value
+      .replaceAll(RegExp(r'[\\/:*?"<>|]'), '')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
 }

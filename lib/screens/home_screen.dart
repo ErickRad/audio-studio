@@ -69,27 +69,31 @@ class _HomeScreenState extends State<HomeScreen> {
           Material(
             color: AppColors.panel,
             child: Container(
-            height: 40,
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: AppColors.line)),
-            ),
-            child: Row(
-              children: [
-                const Padding(
-                  padding: EdgeInsets.only(left: 16, right: 22),
-                  child: Text(
-                    'Audio Studio',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              height: 40,
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: AppColors.line)),
+              ),
+              child: Row(
+                children: [
+                  Image.asset(
+                    "assets/icons/audio_studio.png",
                   ),
-                ),
-                SidebarTabs(
-                  items: tabs,
-                  index: index,
-                  onChanged: (i) => setState(() => index = i),
-                ),
-              ],
+                  Padding(
+                    padding: const EdgeInsets.only(right: 22),
+                    child: const Text(
+                      'Audio Studio',
+                      style:
+                          TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  SidebarTabs(
+                    items: tabs,
+                    index: index,
+                    onChanged: (i) => setState(() => index = i),
+                  ),
+                ],
+              ),
             ),
-          ),
           ),
           if (ffmpegOk == false) buildBanner(),
           Expanded(

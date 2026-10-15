@@ -1,6 +1,8 @@
 import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../state/project_controller.dart';
 import '../theme/app_theme.dart';
 import '../utils.dart';
@@ -14,7 +16,7 @@ class TransportBar extends StatelessWidget {
   static double zoomToSlider(double px) =>
       (log(px / 8) / log(50)).clamp(0.0, 1.0).toDouble();
 
-  static double sliderToZoom(double v) => 8 * pow(50, v).toDouble();
+  static double sliderToZoom(double value) => 8 * pow(50, value).toDouble();
 
   @override
   Widget build(BuildContext context) {
@@ -23,6 +25,7 @@ class TransportBar extends StatelessWidget {
     final busy = c.rendering || c.exporting;
     final hasSelection = c.selectedClip != null;
     final canPlay = has && !busy;
+
     return Material(
       color: AppColors.panel,
       child: Container(
@@ -55,7 +58,8 @@ class TransportBar extends StatelessWidget {
                       onPressed: has ? () => c.seek(0) : null,
                     ),
                     Tooltip(
-                      message: c.playing ? 'Pausar (Espaço)' : 'Reproduzir (Espaço)',
+                      message:
+                          c.playing ? 'Pausar (Espaço)' : 'Reproduzir (Espaço)',
                       child: Material(
                         color: canPlay ? AppColors.accent : AppColors.raised,
                         borderRadius: BorderRadius.circular(4),
@@ -68,7 +72,8 @@ class TransportBar extends StatelessWidget {
                             child: Icon(
                               c.playing ? Icons.pause : Icons.play_arrow,
                               size: 20,
-                              color: canPlay ? Colors.white : AppColors.textDim,
+                              color:
+                                  canPlay ? Colors.white : AppColors.textDim,
                             ),
                           ),
                         ),
@@ -94,10 +99,16 @@ class TransportBar extends StatelessWidget {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(formatMs(ms), style: monoStyle.copyWith(fontSize: 15)),
+                            Text(
+                              formatMs(ms),
+                              style: monoStyle.copyWith(fontSize: 15),
+                            ),
                             Text(
                               '  /  ${formatMs(c.projectEndMs)}',
-                              style: monoStyle.copyWith(fontSize: 12, color: AppColors.textDim),
+                              style: monoStyle.copyWith(
+                                fontSize: 12,
+                                color: AppColors.textDim,
+                              ),
                             ),
                           ],
                         ),
@@ -112,29 +123,36 @@ class TransportBar extends StatelessWidget {
                     ToolButton(
                       icon: Icons.delete_outline,
                       tooltip: 'Excluir trecho (Delete)',
-                      onPressed: hasSelection ? () => c.deleteSelected() : null,
+                      onPressed:
+                          hasSelection ? () => c.deleteSelected() : null,
                     ),
                     ToolButton(
                       icon: Icons.compress,
                       tooltip: 'Excluir e fechar o espaço (Shift+Delete)',
-                      onPressed: hasSelection ? () => c.deleteSelected(ripple: true) : null,
+                      onPressed: hasSelection
+                          ? () => c.deleteSelected(ripple: true)
+                          : null,
                     ),
                     ToolButton(
                       icon: Icons.copy,
                       tooltip: 'Duplicar trecho (Ctrl+D)',
                       iconSize: 16,
-                      onPressed: hasSelection ? c.duplicateSelected : null,
+                      onPressed:
+                          hasSelection ? c.duplicateSelected : null,
                     ),
                     const VDivider(),
                     ToolButton(
                       icon: Icons.add,
                       tooltip: 'Adicionar faixa',
-                      onPressed: c.tracks.length < ProjectController.maxTracks ? c.addTrack : null,
+                      onPressed: c.tracks.length < ProjectController.maxTracks
+                          ? c.addTrack
+                          : null,
                     ),
                     ToolButton(
                       icon: Icons.remove,
                       tooltip: 'Remover faixa ativa',
-                      onPressed: c.tracks.length > 1 ? c.removeActiveTrack : null,
+                      onPressed:
+                          c.tracks.length > 1 ? c.removeActiveTrack : null,
                     ),
                   ],
                 ),
@@ -150,7 +168,7 @@ class TransportBar extends StatelessWidget {
               width: 110,
               child: Slider(
                 value: zoomToSlider(c.pxPerSecond),
-                onChanged: (v) => c.setZoom(sliderToZoom(v)),
+                onChanged: (value) => c.setZoom(sliderToZoom(value)),
               ),
             ),
             ToolButton(

@@ -29,9 +29,11 @@ class DiagnosticsService {
   static Future<List<DiagnosticResult>> run(YoutubeService youtube) async {
     final results = <DiagnosticResult>[];
     final ffmpeg = await versionOf('ffmpeg', ['-version']);
-    results.add(DiagnosticResult('FFmpeg', ffmpeg != null, ffmpeg ?? 'não encontrado no PATH'));
+    results.add(DiagnosticResult(
+        'FFmpeg', ffmpeg != null, ffmpeg ?? 'não encontrado no PATH'));
     final ffprobe = await versionOf('ffprobe', ['-version']);
-    results.add(DiagnosticResult('FFprobe', ffprobe != null, ffprobe ?? 'não encontrado no PATH'));
+    results.add(DiagnosticResult(
+        'FFprobe', ffprobe != null, ffprobe ?? 'não encontrado no PATH'));
     final ytDlp = await versionOf('yt-dlp', ['--version']);
     results.add(
       DiagnosticResult(
@@ -52,14 +54,17 @@ class DiagnosticsService {
     if (Platform.isLinux) {
       var count = 0;
       try {
-        final result = await Process.run('sh', ['-c', 'ldconfig -p 2>/dev/null | grep -c libmpv']);
+        final result = await Process.run(
+            'sh', ['-c', 'ldconfig -p 2>/dev/null | grep -c libmpv']);
         count = int.tryParse('${result.stdout}'.trim()) ?? 0;
       } catch (_) {}
       results.add(
         DiagnosticResult(
           'libmpv (reprodução de áudio)',
           count > 0,
-          count > 0 ? 'encontrada' : 'não encontrada (sudo apt install libmpv-dev mpv)',
+          count > 0
+              ? 'encontrada'
+              : 'não encontrada (sudo apt install libmpv-dev mpv)',
         ),
       );
     }
@@ -75,14 +80,16 @@ class DiagnosticsService {
           .getManifest(testVideoId)
           .timeout(const Duration(seconds: 25));
       if (manifest.audioOnly.isEmpty) {
-        return const DiagnosticResult(name, false, 'o manifesto não trouxe streams de áudio');
+        return const DiagnosticResult(
+            name, false, 'o manifesto não trouxe streams de áudio');
       }
       final info = manifest.audioOnly.withHighestBitrate();
       final chunk = await youtube.yt.videos.streamsClient
           .get(info)
           .first
           .timeout(const Duration(seconds: 25));
-      return DiagnosticResult(name, true, 'ok (${chunk.length} bytes recebidos)');
+      return DiagnosticResult(
+          name, true, 'ok (${chunk.length} bytes recebidos)');
     } catch (e) {
       return DiagnosticResult(name, false, youtube.describe(e));
     }

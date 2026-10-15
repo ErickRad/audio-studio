@@ -7,15 +7,18 @@ class FormatPicker extends StatelessWidget {
   final ExportOptions options;
   final ValueChanged<ExportOptions> onChanged;
 
-  const FormatPicker({super.key, required this.options, required this.onChanged});
+  const FormatPicker(
+      {super.key, required this.options, required this.onChanged});
 
-  Widget group<T>(String label, List<(T, String)> items, T current, ValueChanged<T> onSelect) {
+  Widget group<T>(String label, List<(T, String)> items, T current,
+      ValueChanged<T> onSelect) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textDim)),
+          Text(label,
+              style: const TextStyle(fontSize: 12, color: AppColors.textDim)),
           const SizedBox(height: 6),
           Wrap(
             spacing: 6,
@@ -48,13 +51,20 @@ class FormatPicker extends StatelessWidget {
         if (options.format.lossy)
           group<int>(
             'Bitrate',
-            [for (final b in const [96, 128, 192, 256, 320]) (b, '$b kbps')],
+            [
+              for (final b in const [96, 128, 192, 256, 320]) (b, '$b kbps')
+            ],
             options.bitrateK,
             (v) => onChanged(options.copyWith(bitrateK: v)),
           ),
         group<int>(
           'Taxa de amostragem',
-          const [(0, 'Original'), (22050, '22 kHz'), (44100, '44,1 kHz'), (48000, '48 kHz')],
+          const [
+            (0, 'Original'),
+            (22050, '22 kHz'),
+            (44100, '44,1 kHz'),
+            (48000, '48 kHz')
+          ],
           options.sampleRate,
           (v) => onChanged(options.copyWith(sampleRate: v)),
         ),

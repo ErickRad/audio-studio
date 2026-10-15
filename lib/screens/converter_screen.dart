@@ -68,7 +68,8 @@ class _ConverterScreenState extends State<ConverterScreen> {
   }
 
   Future<void> pickOutputDir() async {
-    final dir = await FilePicker.platform.getDirectoryPath(dialogTitle: 'Pasta de saída');
+    final dir = await FilePicker.platform
+        .getDirectoryPath(dialogTitle: 'Pasta de saída');
     if (dir != null && mounted) setState(() => outputDir = dir);
   }
 
@@ -94,7 +95,8 @@ class _ConverterScreenState extends State<ConverterScreen> {
         job.state = JobState.running;
         job.message = '';
       });
-      final out = uniquePath(dir, StorageService.safeName(job.name), options.format.ext);
+      final out = uniquePath(
+          dir, StorageService.safeName(job.name), options.format.ext);
       final ok = await AudioEngine.convert(job.path, out, options);
       if (!mounted) return;
       setState(() {
@@ -123,7 +125,9 @@ class _ConverterScreenState extends State<ConverterScreen> {
         final size = File(job.output!).lengthSync() / 1048576;
         return '${p.basename(job.output!)} · ${size.toStringAsFixed(2)} MB';
       case JobState.failed:
-        return job.message.isEmpty ? 'Falha na conversão' : 'Falha: ${job.message}';
+        return job.message.isEmpty
+            ? 'Falha na conversão'
+            : 'Falha: ${job.message}';
     }
   }
 
@@ -137,13 +141,17 @@ class _ConverterScreenState extends State<ConverterScreen> {
       ),
       child: Row(
         children: [
-          AppButton(label: 'Adicionar arquivos', icon: Icons.add, onPressed: running ? null : pickFiles),
+          AppButton(
+              label: 'Adicionar arquivos',
+              icon: Icons.add,
+              onPressed: running ? null : pickFiles),
           const SizedBox(width: 8),
           PopupMenuButton<LibraryItem>(
             enabled: !running,
             tooltip: 'Adicionar da biblioteca',
             color: AppColors.raised,
-            constraints: const BoxConstraints(minWidth: 280, maxWidth: 460, maxHeight: 420),
+            constraints: const BoxConstraints(
+                minWidth: 280, maxWidth: 460, maxHeight: 420),
             onSelected: (item) => addPaths([item.path]),
             itemBuilder: (_) => library.isEmpty
                 ? const [
@@ -158,7 +166,8 @@ class _ConverterScreenState extends State<ConverterScreen> {
                       PopupMenuItem<LibraryItem>(
                         value: item,
                         height: 32,
-                        child: Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        child: Text(item.title,
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                   ],
             child: Container(
@@ -173,7 +182,9 @@ class _ConverterScreenState extends State<ConverterScreen> {
                 children: [
                   Icon(Icons.library_music_outlined, size: 15),
                   SizedBox(width: 6),
-                  Text('Da biblioteca', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500)),
+                  Text('Da biblioteca',
+                      style: TextStyle(
+                          fontSize: 12.5, fontWeight: FontWeight.w500)),
                 ],
               ),
             ),
@@ -183,7 +194,8 @@ class _ConverterScreenState extends State<ConverterScreen> {
             label: 'Limpar concluídos',
             onPressed: running || !jobs.any((j) => j.state == JobState.done)
                 ? null
-                : () => setState(() => jobs.removeWhere((j) => j.state == JobState.done)),
+                : () => setState(
+                    () => jobs.removeWhere((j) => j.state == JobState.done)),
           ),
         ],
       ),
@@ -226,7 +238,9 @@ class _ConverterScreenState extends State<ConverterScreen> {
         ToolButton(
           icon: Icons.close,
           tooltip: 'Remover da fila',
-          onPressed: job.state == JobState.running ? null : () => setState(() => jobs.remove(job)),
+          onPressed: job.state == JobState.running
+              ? null
+              : () => setState(() => jobs.remove(job)),
         ),
       ],
     );
@@ -244,11 +258,14 @@ class _ConverterScreenState extends State<ConverterScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Saída', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          const Text('Saída',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
-          FormatPicker(options: options, onChanged: (o) => setState(() => options = o)),
+          FormatPicker(
+              options: options, onChanged: (o) => setState(() => options = o)),
           const SizedBox(height: 10),
-          const Text('Pasta de destino', style: TextStyle(fontSize: 12, color: AppColors.textDim)),
+          const Text('Pasta de destino',
+              style: TextStyle(fontSize: 12, color: AppColors.textDim)),
           const SizedBox(height: 6),
           Row(
             children: [
@@ -261,7 +278,8 @@ class _ConverterScreenState extends State<ConverterScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              AppButton(label: 'Alterar', onPressed: running ? null : pickOutputDir),
+              AppButton(
+                  label: 'Alterar', onPressed: running ? null : pickOutputDir),
             ],
           ),
           const SizedBox(height: 10),
@@ -272,7 +290,9 @@ class _ConverterScreenState extends State<ConverterScreen> {
           ),
           const Spacer(),
           AppButton(
-            label: pending == 0 ? 'Converter' : 'Converter $pending ${pending == 1 ? 'arquivo' : 'arquivos'}',
+            label: pending == 0
+                ? 'Converter'
+                : 'Converter $pending ${pending == 1 ? 'arquivo' : 'arquivos'}',
             icon: Icons.swap_horiz,
             primary: true,
             expand: true,
@@ -301,7 +321,8 @@ class _ConverterScreenState extends State<ConverterScreen> {
                           child: Text(
                             'Adicione arquivos de áudio ou vídeo, ou itens da biblioteca, e escolha o formato de saída.',
                             textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 13, color: AppColors.textDim),
+                            style: TextStyle(
+                                fontSize: 13, color: AppColors.textDim),
                           ),
                         ),
                       )

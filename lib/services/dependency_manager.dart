@@ -1,4 +1,3 @@
-
 import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
@@ -99,9 +98,7 @@ class DependencyManager {
     try {
       final result = await Process.run(
         path,
-        name == 'ffmpeg' || name == 'ffprobe'
-            ? ['-version']
-            : ['--version'],
+        name == 'ffmpeg' || name == 'ffprobe' ? ['-version'] : ['--version'],
       );
 
       return result.exitCode == 0;
@@ -233,8 +230,7 @@ class DependencyManager {
         },
       );
 
-      if (!await partial.exists() ||
-          await partial.length() == 0) {
+      if (!await partial.exists() || await partial.length() == 0) {
         throw Exception('O download retornou um arquivo vazio.');
       }
 
@@ -312,14 +308,13 @@ class DependencyManager {
   ) async {
     final filename = isWindows ? 'yt-dlp.exe' : 'yt-dlp_linux';
 
-    final base =
-        'https://github.com/yt-dlp/yt-dlp/releases/latest/download/';
+    final base = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/';
 
     final download = await _download(
       '$base$filename',
       '${target.path}.download',
       onProgress: onProgress,
-      label: 'Baixando yt-dlp',
+      label: 'Baixando plugins [2/2] ...',
     );
 
     final downloaded = File(download);
@@ -372,7 +367,7 @@ class DependencyManager {
       '$base$filename',
       archiveFile.path,
       onProgress: onProgress,
-      label: 'Baixando FFmpeg',
+      label: 'Baixando FFmpeg [1/2] ...',
     );
 
     final staging = Directory(
@@ -422,9 +417,8 @@ class DependencyManager {
         }
       }
 
-      final wantedNames = isWindows
-          ? ['ffmpeg.exe', 'ffprobe.exe']
-          : ['ffmpeg', 'ffprobe'];
+      final wantedNames =
+          isWindows ? ['ffmpeg.exe', 'ffprobe.exe'] : ['ffmpeg', 'ffprobe'];
 
       final found = <String, File>{};
 
@@ -497,9 +491,7 @@ class DependencyManager {
         final path = await resolve(name);
         final version = await Process.run(
           path,
-          name == 'ffmpeg' || name == 'ffprobe'
-              ? ['-version']
-              : ['--version'],
+          name == 'ffmpeg' || name == 'ffprobe' ? ['-version'] : ['--version'],
         );
 
         result[name] = version.exitCode == 0

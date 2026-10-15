@@ -20,8 +20,20 @@ class ProjectController extends ChangeNotifier {
   static const int minClipMs = 100;
   static const int maxTracks = 6;
   static const List<String> importExtensions = [
-    'mp3', 'wav', 'flac', 'm4a', 'aac', 'ogg', 'opus', 'wma',
-    'mp4', 'mkv', 'mov', 'webm', 'avi', '3gp',
+    'mp3',
+    'wav',
+    'flac',
+    'm4a',
+    'aac',
+    'ogg',
+    'opus',
+    'wma',
+    'mp4',
+    'mkv',
+    'mov',
+    'webm',
+    'avi',
+    '3gp',
   ];
 
   final List<LibraryItem> library = [];
@@ -86,10 +98,10 @@ class ProjectController extends ChangeNotifier {
     await loadProject();
     player
         .createPositionStream(
-          steps: 800,
-          minPeriod: const Duration(milliseconds: 30),
-          maxPeriod: const Duration(milliseconds: 60),
-        )
+      steps: 800,
+      minPeriod: const Duration(milliseconds: 30),
+      maxPeriod: const Duration(milliseconds: 60),
+    )
         .listen((pos) {
       if (!player.playing || dirty) return;
       playheadMs = pos.inMilliseconds.clamp(0, projectEndMs).toInt();
@@ -99,7 +111,8 @@ class ProjectController extends ChangeNotifier {
         player.pause();
         playheadMs = projectEndMs;
       }
-      playing = state.playing && state.processingState != ProcessingState.completed;
+      playing =
+          state.playing && state.processingState != ProcessingState.completed;
       notifyListeners();
     });
   }
@@ -121,14 +134,16 @@ class ProjectController extends ChangeNotifier {
 
   Future<void> saveLibrary() async {
     final file = await StorageService.libraryFile();
-    await file.writeAsString(jsonEncode(library.map((i) => i.toJson()).toList()));
+    await file
+        .writeAsString(jsonEncode(library.map((i) => i.toJson()).toList()));
   }
 
   Future<void> loadProject() async {
     final file = await StorageService.projectFile();
     if (await file.exists()) {
       try {
-        final data = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+        final data =
+            jsonDecode(await file.readAsString()) as Map<String, dynamic>;
         final list = (data['tracks'] as List).cast<Map<String, dynamic>>();
         tracks
           ..clear()
@@ -142,7 +157,6 @@ class ProjectController extends ChangeNotifier {
     }
     if (tracks.isEmpty) {
       tracks.add(TimelineTrack(id: newId(), name: 'Faixa 1'));
-      tracks.add(TimelineTrack(id: newId(), name: 'Faixa 2'));
     }
     for (final t in tracks) {
       for (final c in t.clips) {
@@ -159,7 +173,8 @@ class ProjectController extends ChangeNotifier {
 
   Future<void> saveProject() async {
     final file = await StorageService.projectFile();
-    await file.writeAsString(jsonEncode({'tracks': tracks.map((t) => t.toJson()).toList()}));
+    await file.writeAsString(
+        jsonEncode({'tracks': tracks.map((t) => t.toJson()).toList()}));
   }
 
   Future<LibraryItem> addToLibrary({
@@ -202,9 +217,11 @@ class ProjectController extends ChangeNotifier {
     for (final f in result.files) {
       final src = f.path;
       if (src == null) continue;
-      final dest = p.join(folder.path, '${DateTime.now().millisecondsSinceEpoch}_${p.basename(src)}');
+      final dest = p.join(folder.path,
+          '${DateTime.now().millisecondsSinceEpoch}_${p.basename(src)}');
       await File(src).copy(dest);
-      await addToLibrary(title: p.basenameWithoutExtension(src), artist: 'Local', path: dest);
+      await addToLibrary(
+          title: p.basenameWithoutExtension(src), artist: 'Local', path: dest);
       count++;
     }
     return count;
@@ -323,11 +340,13 @@ class ProjectController extends ChangeNotifier {
 
   bool isValid(int trackIndex, AudioClip clip) {
     if (trackIndex < 0 || trackIndex >= tracks.length) return false;
-    if (clip.startMs < 0 || clip.inMs < 0 || clip.outMs > clip.sourceMs) return false;
+    if (clip.startMs < 0 || clip.inMs < 0 || clip.outMs > clip.sourceMs)
+      return false;
     if (clip.lengthMs < minClipMs) return false;
     for (final o in tracks[trackIndex].clips) {
       if (o.id == clip.id) continue;
-      if (clip.startMs < o.endMs - 1 && clip.endMs > o.startMs + 1) return false;
+      if (clip.startMs < o.endMs - 1 && clip.endMs > o.startMs + 1)
+        return false;
     }
     return true;
   }
@@ -417,7 +436,9 @@ class ProjectController extends ChangeNotifier {
     if (loc == null) return;
     final c = tracks[loc.track].clips[loc.index];
     final src = (deltaMs * c.speed).round();
-    final next = c.reversed ? c.copyWith(inMs: c.inMs - src) : c.copyWith(outMs: c.outMs + src);
+    final next = c.reversed
+        ? c.copyWith(inMs: c.inMs - src)
+        : c.copyWith(outMs: c.outMs + src);
     if (replaceClip(id, next)) afterEdit();
   }
 
@@ -455,11 +476,13 @@ class ProjectController extends ChangeNotifier {
       if (!c.reversed) {
         final cut = c.inMs + srcOffset;
         first = c.copyWith(outMs: cut, fadeOutMs: 0);
-        second = c.copyWith(id: newId(), inMs: cut, startMs: playheadMs, fadeInMs: 0);
+        second = c.copyWith(
+            id: newId(), inMs: cut, startMs: playheadMs, fadeInMs: 0);
       } else {
         final cut = c.outMs - srcOffset;
         first = c.copyWith(inMs: cut, fadeOutMs: 0);
-        second = c.copyWith(id: newId(), outMs: cut, startMs: playheadMs, fadeInMs: 0);
+        second = c.copyWith(
+            id: newId(), outMs: cut, startMs: playheadMs, fadeInMs: 0);
       }
       tracks[loc.track].clips[loc.index] = first;
       tracks[loc.track].clips.add(second);
@@ -480,7 +503,8 @@ class ProjectController extends ChangeNotifier {
     if (ripple) {
       for (var i = 0; i < list.length; i++) {
         if (list[i].startMs >= removed.endMs - 1) {
-          list[i] = list[i].copyWith(startMs: list[i].startMs - removed.durationMs);
+          list[i] =
+              list[i].copyWith(startMs: list[i].startMs - removed.durationMs);
         }
       }
     }
@@ -497,7 +521,8 @@ class ProjectController extends ChangeNotifier {
     pushHistory();
     var copy = clip.copyWith(id: newId(), startMs: clip.endMs);
     if (!isValid(loc.track, copy)) {
-      final end = tracks[loc.track].clips.fold<int>(0, (m, c) => max(m, c.endMs));
+      final end =
+          tracks[loc.track].clips.fold<int>(0, (m, c) => max(m, c.endMs));
       copy = copy.copyWith(startMs: end);
     }
     tracks[loc.track].clips.add(copy);
@@ -522,7 +547,8 @@ class ProjectController extends ChangeNotifier {
   Future<bool> renderPreview() async {
     final end = projectEndMs;
     final dir = await getTemporaryDirectory();
-    final out = p.join(dir.path, 'preview_${DateTime.now().millisecondsSinceEpoch}.wav');
+    final out = p.join(
+        dir.path, 'preview_${DateTime.now().millisecondsSinceEpoch}.wav');
     final args = AudioEngine.buildMixArgs(tracks, end, out, null);
     if (args == null) return false;
     rendering = true;
@@ -576,7 +602,8 @@ class ProjectController extends ChangeNotifier {
     notifyListeners();
     try {
       if (player.playing) await player.pause();
-      final args = AudioEngine.buildMixArgs(tracks, projectEndMs, outPath, options);
+      final args =
+          AudioEngine.buildMixArgs(tracks, projectEndMs, outPath, options);
       if (args == null) return null;
       final ok = await FfmpegRunner.run(args);
       if (!ok) lastError = FfmpegRunner.lastLog;

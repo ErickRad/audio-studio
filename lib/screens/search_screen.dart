@@ -61,7 +61,8 @@ class _SearchScreenState extends State<SearchScreen> {
     } catch (e, stack) {
       AppLog.error('busca', e, stack);
       if (!mounted) return;
-      setState(() => error = 'Falha na busca: ${'$e'.replaceFirst('Exception: ', '')}');
+      setState(() =>
+          error = 'Falha na busca: ${'$e'.replaceFirst('Exception: ', '')}');
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -86,9 +87,11 @@ class _SearchScreenState extends State<SearchScreen> {
           if (mounted) setState(() => stage[result.key] = s);
         },
       );
-      await project.addToLibrary(title: result.title, artist: result.artist, path: path);
+      await project.addToLibrary(
+          title: result.title, artist: result.artist, path: path);
       if (mounted) setState(() => done.add(result.key));
-      messenger.showSnackBar(SnackBar(content: Text('Adicionada à biblioteca: ${result.title}')));
+      messenger.showSnackBar(
+          SnackBar(content: Text('Adicionada à biblioteca: ${result.title}')));
     } catch (e, stack) {
       AppLog.error('download', e, stack);
       if (mounted) {
@@ -144,7 +147,8 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ),
           const SizedBox(width: 8),
-          AppButton(label: 'Buscar', primary: true, busy: loading, onPressed: search),
+          AppButton(
+              label: 'Buscar', primary: true, busy: loading, onPressed: search),
           const SizedBox(width: 4),
           ToolButton(
             icon: Icons.build_outlined,
@@ -230,7 +234,9 @@ class _SearchScreenState extends State<SearchScreen> {
       title: r.title,
       subtitle: subtitle,
       busy: busy,
-      progress: (progress[r.key] ?? 0) > 0 && (progress[r.key] ?? 0) < 1 ? progress[r.key] : null,
+      progress: (progress[r.key] ?? 0) > 0 && (progress[r.key] ?? 0) < 1
+          ? progress[r.key]
+          : null,
       onDoubleTap: done.contains(r.key) || busy ? null : () => download(r),
       actions: [
         buildPreviewButton(r),

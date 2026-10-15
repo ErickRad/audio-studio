@@ -28,7 +28,9 @@ class _DiagnosticsDialogState extends State<DiagnosticsDialog> {
   }
 
   String report(List<DiagnosticResult> items) {
-    return items.map((r) => '${r.ok ? 'OK' : 'FALHA'} - ${r.name}: ${r.detail}').join('\n');
+    return items
+        .map((r) => '${r.ok ? 'OK' : 'FALHA'} - ${r.name}: ${r.detail}')
+        .join('\n');
   }
 
   Widget buildRow(DiagnosticResult r) {
@@ -50,11 +52,14 @@ class _DiagnosticsDialogState extends State<DiagnosticsDialog> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(r.name, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                Text(r.name,
+                    style: const TextStyle(
+                        fontSize: 12.5, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 2),
                 SelectableText(
                   r.detail,
-                  style: const TextStyle(fontSize: 11.5, color: AppColors.textDim, height: 1.4),
+                  style: const TextStyle(
+                      fontSize: 11.5, color: AppColors.textDim, height: 1.4),
                 ),
               ],
             ),
@@ -77,7 +82,10 @@ class _DiagnosticsDialogState extends State<DiagnosticsDialog> {
               ? null
               : () => Clipboard.setData(ClipboardData(text: report(items))),
         ),
-        AppButton(label: 'Fechar', primary: true, onPressed: () => Navigator.pop(context)),
+        AppButton(
+            label: 'Fechar',
+            primary: true,
+            onPressed: () => Navigator.pop(context)),
       ],
       child: items == null
           ? const Column(

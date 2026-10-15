@@ -18,7 +18,8 @@ class PreviewService {
         currentId.value = null;
       }
     });
-    player.playbackEventStream.listen((_) {}, onError: (Object error, StackTrace stack) {
+    player.playbackEventStream.listen((_) {},
+        onError: (Object error, StackTrace stack) {
       AppLog.error('player', error, stack);
       currentId.value = null;
       loadingId.value = null;
@@ -68,7 +69,8 @@ class PreviewService {
     } catch (e, stack) {
       AppLog.error('prévia', e, stack);
       if (currentId.value == id) currentId.value = null;
-      final text = '$e'.replaceFirst('Exception: ', '').replaceAll('\n', ' ').trim();
+      final text =
+          '$e'.replaceFirst('Exception: ', '').replaceAll('\n', ' ').trim();
       return text.length > 800 ? '${text.substring(0, 800)}…' : text;
     } finally {
       if (loadingId.value == id) loadingId.value = null;

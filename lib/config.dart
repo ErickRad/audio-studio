@@ -1,1 +1,1 @@
-const String jamendoClientId = 'SEU_CLIENT_ID';
+const String jamendoClientId = 'bf2a862c';

@@ -19,7 +19,8 @@ class LibraryScreen extends StatelessWidget {
     final messenger = ScaffoldMessenger.of(context);
     final n = await project.importFiles();
     if (n > 0) {
-      messenger.showSnackBar(SnackBar(content: Text('$n arquivo(s) importado(s)')));
+      messenger
+          .showSnackBar(SnackBar(content: Text('$n arquivo(s) importado(s)')));
     }
   }
 
@@ -55,9 +56,11 @@ class LibraryScreen extends StatelessWidget {
             tooltip: current == item.id ? 'Parar' : 'Ouvir',
             onPressed: () async {
               final messenger = ScaffoldMessenger.of(context);
-              final error = await PreviewService.instance.toggle(item.id, filePath: item.path);
+              final error = await PreviewService.instance
+                  .toggle(item.id, filePath: item.path);
               if (error != null) {
-                messenger.showSnackBar(SnackBar(content: Text('Não foi possível tocar: $error')));
+                messenger.showSnackBar(
+                    SnackBar(content: Text('Não foi possível tocar: $error')));
               }
             },
           ),

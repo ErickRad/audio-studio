@@ -10,7 +10,8 @@ import 'ffmpeg_runner.dart';
 
 class AudioEngine {
   static const int peakMs = 20;
-  static const String conform = 'aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo';
+  static const String conform =
+      'aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo';
 
   static String sec(num ms) => (ms / 1000).toStringAsFixed(3);
 
@@ -82,7 +83,8 @@ class AudioEngine {
   }
 
   static Future<bool> convert(String inPath, String outPath, ExportOptions o) {
-    return FfmpegRunner.run(['-y', '-i', inPath, '-vn', ...codecArgs(o), outPath]);
+    return FfmpegRunner.run(
+        ['-y', '-i', inPath, '-vn', ...codecArgs(o), outPath]);
   }
 
   static void addTempo(List<String> filters, double tempo) {
@@ -115,7 +117,8 @@ class AudioEngine {
     if (c.bass.abs() > 0.01) f.add('bass=g=${c.bass.toStringAsFixed(1)}');
     if (c.treble.abs() > 0.01) f.add('treble=g=${c.treble.toStringAsFixed(1)}');
     if (c.normalize) f.add('loudnorm=I=-16:TP=-1.5:LRA=11');
-    if ((c.volume - 1).abs() > 0.001) f.add('volume=${c.volume.toStringAsFixed(3)}');
+    if ((c.volume - 1).abs() > 0.001)
+      f.add('volume=${c.volume.toStringAsFixed(3)}');
     final dur = c.durationMs;
     if (c.fadeInMs > 0) {
       f.add('afade=t=in:st=0:d=${sec(min(c.fadeInMs, dur))}');
@@ -178,7 +181,14 @@ class AudioEngine {
         '${trackLabels.join()}amix=inputs=$n:duration=longest:dropout_transition=0,volume=$n,alimiter=limit=0.95[out]',
       );
     }
-    args.addAll(['-filter_complex', filters.join(';'), '-map', '[out]', '-t', totalSec]);
+    args.addAll([
+      '-filter_complex',
+      filters.join(';'),
+      '-map',
+      '[out]',
+      '-t',
+      totalSec
+    ]);
     if (options == null) {
       args.addAll(['-c:a', 'pcm_s16le', '-ar', '44100', '-ac', '2']);
     } else {

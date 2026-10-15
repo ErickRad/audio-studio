@@ -19,7 +19,8 @@ class JamendoService {
     if (response.statusCode != 200) {
       throw Exception('HTTP ${response.statusCode}');
     }
-    final body = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+    final body =
+        jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
     final results = (body['results'] as List).cast<Map<String, dynamic>>();
     return results
         .where((j) => j['audiodownload_allowed'] == true)

@@ -41,8 +41,15 @@ ThemeData buildTheme() {
     scaffoldBackgroundColor: AppColors.background,
     canvasColor: AppColors.panel,
     visualDensity: VisualDensity.compact,
-    fontFamilyFallback: const ['Inter', 'Noto Sans', 'Segoe UI', 'Ubuntu', 'Cantarell'],
-    dividerTheme: const DividerThemeData(color: AppColors.line, space: 1, thickness: 1),
+    fontFamilyFallback: const [
+      'Inter',
+      'Noto Sans',
+      'Segoe UI',
+      'Ubuntu',
+      'Cantarell'
+    ],
+    dividerTheme:
+        const DividerThemeData(color: AppColors.line, space: 1, thickness: 1),
     tooltipTheme: TooltipThemeData(
       waitDuration: const Duration(milliseconds: 600),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -64,7 +71,8 @@ ThemeData buildTheme() {
       inactiveTrackColor: AppColors.line,
       thumbColor: AppColors.text,
       overlayShape: RoundSliderOverlayShape(overlayRadius: 0),
-      thumbShape: RoundSliderThumbShape(enabledThumbRadius: 5, elevation: 0, pressedElevation: 0),
+      thumbShape: RoundSliderThumbShape(
+          enabledThumbRadius: 5, elevation: 0, pressedElevation: 0),
       trackShape: RectangularSliderTrackShape(),
     ),
     popupMenuTheme: PopupMenuThemeData(

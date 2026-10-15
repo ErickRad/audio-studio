@@ -1,4 +1,3 @@
-
 import 'dart:io';
 
 import 'app_log.dart';
@@ -9,8 +8,7 @@ class FfmpegRunner {
 
   static Future<bool> isAvailable() async {
     try {
-      final executable =
-          await DependencyManager.instance.resolve('ffmpeg');
+      final executable = await DependencyManager.instance.resolve('ffmpeg');
 
       final result = await Process.run(executable, ['-version']);
       return result.exitCode == 0;
@@ -29,15 +27,12 @@ class FfmpegRunner {
     ];
 
     try {
-      final executable =
-          await DependencyManager.instance.resolve('ffmpeg');
+      final executable = await DependencyManager.instance.resolve('ffmpeg');
 
       final command = '$executable ${full.join(' ')}';
       AppLog.info(
         'ffmpeg',
-        command.length > 500
-            ? '${command.substring(0, 500)}…'
-            : command,
+        command.length > 500 ? '${command.substring(0, 500)}…' : command,
       );
 
       final result = await Process.run(executable, full);
@@ -49,9 +44,8 @@ class FfmpegRunner {
       }
 
       final output = '${result.stderr}'.trim();
-      lastLog = output.length > 400
-          ? output.substring(output.length - 400)
-          : output;
+      lastLog =
+          output.length > 400 ? output.substring(output.length - 400) : output;
 
       AppLog.write(
         'ERRO',
@@ -73,8 +67,7 @@ class FfmpegRunner {
 
   static Future<int> probeDurationMs(String path) async {
     try {
-      final executable =
-          await DependencyManager.instance.resolve('ffprobe');
+      final executable = await DependencyManager.instance.resolve('ffprobe');
 
       final result = await Process.run(executable, [
         '-v',

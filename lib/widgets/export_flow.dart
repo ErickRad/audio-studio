@@ -56,11 +56,13 @@ Future<void> startExport(BuildContext context) async {
     allowedExtensions: [ext],
   );
   if (target == null) return;
-  final outPath = target.toLowerCase().endsWith('.$ext') ? target : '$target.$ext';
+  final outPath =
+      target.toLowerCase().endsWith('.$ext') ? target : '$target.$ext';
   final result = await project.exportProject(options, outPath);
   if (result == null) {
     messenger.showSnackBar(
-      SnackBar(content: Text('Não foi possível exportar. ${project.lastError}')),
+      SnackBar(
+          content: Text('Não foi possível exportar. ${project.lastError}')),
     );
     return;
   }

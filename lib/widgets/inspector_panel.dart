@@ -32,11 +32,13 @@ class InspectorPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Nenhum trecho selecionado', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          Text('Nenhum trecho selecionado',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
           SizedBox(height: 6),
           Text(
             'Clique em um trecho da timeline para ajustar volume, fades, velocidade, tom e equalização. Arraste o trecho para movê-lo e as bordas para aparar.',
-            style: TextStyle(fontSize: 12.5, color: AppColors.textDim, height: 1.4),
+            style: TextStyle(
+                fontSize: 12.5, color: AppColors.textDim, height: 1.4),
           ),
         ],
       ),
@@ -50,16 +52,19 @@ class InspectorPanel extends StatelessWidget {
         children: [
           SizedBox(
             width: 58,
-            child: Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textDim)),
+            child: Text(label,
+                style: const TextStyle(fontSize: 12, color: AppColors.textDim)),
           ),
-          Expanded(child: Text(value, style: monoStyle.copyWith(fontSize: 11.5))),
+          Expanded(
+              child: Text(value, style: monoStyle.copyWith(fontSize: 11.5))),
         ],
       ),
     );
   }
 
   Widget buildBody(ProjectController c, AudioClip clip) {
-    final fadeMax = (clip.durationMs.toDouble() / 2).clamp(500.0, 10000.0).toDouble();
+    final fadeMax =
+        (clip.durationMs.toDouble() / 2).clamp(500.0, 10000.0).toDouble();
     Widget slider({
       required String label,
       required double value,
@@ -100,12 +105,14 @@ class InspectorPanel extends StatelessWidget {
                   clip.label,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 6),
                 info('Duração', shortTime(clip.durationMs)),
                 info('Início', formatMs(clip.startMs)),
-                info('Origem', '${shortTime(clip.inMs)}–${shortTime(clip.outMs)}'),
+                info('Origem',
+                    '${shortTime(clip.inMs)}–${shortTime(clip.outMs)}'),
               ],
             ),
           ),
@@ -145,7 +152,8 @@ class InspectorPanel extends StatelessWidget {
                       min: 0,
                       max: fadeMax,
                       defaultValue: 0,
-                      display: '${(clip.fadeOutMs / 1000).toStringAsFixed(1)} s',
+                      display:
+                          '${(clip.fadeOutMs / 1000).toStringAsFixed(1)} s',
                       apply: (x, v) => x.copyWith(fadeOutMs: v.round()),
                     ),
                     slider(
@@ -156,7 +164,8 @@ class InspectorPanel extends StatelessWidget {
                       divisions: 55,
                       defaultValue: 1,
                       display: '${clip.speed.toStringAsFixed(2)}x',
-                      apply: (x, v) => x.copyWith(speed: double.parse(v.toStringAsFixed(2))),
+                      apply: (x, v) =>
+                          x.copyWith(speed: double.parse(v.toStringAsFixed(2))),
                     ),
                     slider(
                       label: 'Tom',

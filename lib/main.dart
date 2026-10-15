@@ -1,4 +1,3 @@
-
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -58,12 +57,10 @@ class DependencyBootstrap extends StatefulWidget {
   final Widget child;
 
   @override
-  State<DependencyBootstrap> createState() =>
-      _DependencyBootstrapState();
+  State<DependencyBootstrap> createState() => _DependencyBootstrapState();
 }
 
-class _DependencyBootstrapState
-    extends State<DependencyBootstrap> {
+class _DependencyBootstrapState extends State<DependencyBootstrap> {
   String _message = 'Verificando dependências...';
   double _progress = 0;
   String? _error;
@@ -136,14 +133,10 @@ class _DependencyBootstrapState
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Icon(
-                  _error == null
-                      ? Icons.settings_suggest_outlined
-                      : Icons.warning_amber_rounded,
-                  size: 48,
-                  color: _error == null
-                      ? colors.primary
-                      : colors.error,
+                Image.asset(
+                  "assets/icons/audio_studio.png",
+                  width: 64,
+                  height: 64,
                 ),
                 const SizedBox(height: 24),
                 Text(

@@ -31,7 +31,8 @@ class ExportOptions {
 
   AudioFormat get format => audioFormats.firstWhere((f) => f.id == formatId);
 
-  ExportOptions copyWith({String? formatId, int? bitrateK, int? sampleRate, int? channels}) {
+  ExportOptions copyWith(
+      {String? formatId, int? bitrateK, int? sampleRate, int? channels}) {
     return ExportOptions(
       formatId: formatId ?? this.formatId,
       bitrateK: bitrateK ?? this.bitrateK,

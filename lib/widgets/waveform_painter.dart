@@ -32,8 +32,14 @@ class WaveformPainter extends CustomPainter {
       final px = reversed ? max(0.0, size.width - x - 2) : x;
       final startMs = inMs + px / size.width * lengthMs;
       final endMs = inMs + (px + 2) / size.width * lengthMs;
-      final s = (startMs / AudioEngine.peakMs).floor().clamp(0, peaks.length - 1).toInt();
-      final e = (endMs / AudioEngine.peakMs).ceil().clamp(s + 1, peaks.length).toInt();
+      final s = (startMs / AudioEngine.peakMs)
+          .floor()
+          .clamp(0, peaks.length - 1)
+          .toInt();
+      final e = (endMs / AudioEngine.peakMs)
+          .ceil()
+          .clamp(s + 1, peaks.length)
+          .toInt();
       var m = 0.0;
       for (var i = s; i < e; i++) {
         if (peaks[i] > m) m = peaks[i];
