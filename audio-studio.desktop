@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Audio Studio
+Comment=Utilitário de áudio
+Exec=audio_studio
+Icon=audio-studio
+Terminal=false
+Type=Application
+Categories=AudioVideo;Audio;
+StartupNotify=true
