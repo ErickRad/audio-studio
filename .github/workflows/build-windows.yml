@@ -1,0 +1,53 @@
+
+name: Build Audio Studio for Windows
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Enable Windows desktop
+        run: flutter config --enable-windows-desktop
+
+      - name: Build Windows release
+        run: flutter build windows --release
+
+      - name: Package application
+        shell: pwsh
+        run: |
+          $release = "build/windows/x64/runner/Release"
+          $exe = Get-ChildItem $release -Filter "*.exe" -ErrorAction SilentlyContinue
+
+          if (!$exe) {
+            throw "Executable not found in $release"
+          }
+
+          Compress-Archive `
+            -Path "$release/*" `
+            -DestinationPath "AudioStudio-Windows-x64.zip" `
+            -Force
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AudioStudio-Windows-x64
+          path: AudioStudio-Windows-x64.zip
+          if-no-files-found: error
+          retention-days: 14
