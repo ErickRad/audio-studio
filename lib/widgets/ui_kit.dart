@@ -672,6 +672,7 @@ class MediaRow extends StatelessWidget {
   final List<Widget> actions;
   final bool busy;
   final double? progress;
+  final VoidCallback? onTap;
   final VoidCallback? onDoubleTap;
 
   const MediaRow({
@@ -682,6 +683,7 @@ class MediaRow extends StatelessWidget {
     required this.actions,
     this.busy = false,
     this.progress,
+    this.onTap,
     this.onDoubleTap,
   });
 
@@ -689,14 +691,15 @@ class MediaRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       hoverColor: AppColors.hover,
-      onTap: () {},
+      onTap: onTap,
       onDoubleTap: onDoubleTap,
       child: Container(
         height: 54,
         padding: const EdgeInsets.fromLTRB(10, 0, 6, 0),
         decoration: BoxDecoration(
-          border:
-              Border(bottom: BorderSide(color: AppColors.line.withAlpha(120))),
+          border: Border(
+            bottom: BorderSide(color: AppColors.line.withAlpha(120)),
+          ),
         ),
         child: Stack(
           children: [
@@ -721,7 +724,9 @@ class MediaRow extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                            fontSize: 11.5, color: AppColors.textDim),
+                          fontSize: 11.5,
+                          color: AppColors.textDim,
+                        ),
                       ),
                     ],
                   ),

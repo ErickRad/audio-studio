@@ -29,6 +29,7 @@ class _SearchScreenState extends State<SearchScreen> {
   final Map<String, String> stage = {};
   final Set<String> done = {};
   SearchSource source = SearchSource.youtube;
+  SearchResult? selectedResult;
   bool loading = false;
   bool searched = false;
   String? error;
@@ -48,6 +49,7 @@ class _SearchScreenState extends State<SearchScreen> {
       loading = true;
       error = null;
       results.clear();
+      selectedResult = null;
     });
     try {
       final found = source == SearchSource.youtube
@@ -131,6 +133,7 @@ class _SearchScreenState extends State<SearchScreen> {
               onChanged: (s) => setState(() {
                 source = s;
                 results.clear();
+                selectedResult = null;
                 error = null;
                 searched = false;
               }),
@@ -186,10 +189,22 @@ class _SearchScreenState extends State<SearchScreen> {
             : 'Digite o nome da música, do artista ou cole um link do YouTube.',
       );
     }
-    return ListView.builder(
-      itemCount: results.length,
-      itemExtent: 54,
-      itemBuilder: (context, i) => buildRow(results[i]),
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: ListView.builder(
+            itemCount: results.length,
+            itemExtent: 54,
+            itemBuilder: (context, i) => buildRow(results[i]),
+          ),
+        ),
+        if (selectedResult != null) ...[
+          Container(width: 1, color: AppColors.line),
+          Expanded(child: buildDetailsPanel(selectedResult!)),
+        ],
+      ],
     );
   }
 
@@ -237,6 +252,7 @@ class _SearchScreenState extends State<SearchScreen> {
       progress: (progress[r.key] ?? 0) > 0 && (progress[r.key] ?? 0) < 1
           ? progress[r.key]
           : null,
+      onTap: () => setState(() => selectedResult = r),
       onDoubleTap: done.contains(r.key) || busy ? null : () => download(r),
       actions: [
         buildPreviewButton(r),
@@ -253,6 +269,135 @@ class _SearchScreenState extends State<SearchScreen> {
             onPressed: busy ? null : () => download(r),
           ),
       ],
+    );
+  }
+
+  Widget detailField(String label, String value) {
+    if (value.trim().isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label.toUpperCase(),
+              style: const TextStyle(
+                  fontSize: 10.5,
+                  letterSpacing: 0.8,
+                  color: AppColors.textDim,
+                  fontWeight: FontWeight.w600)),
+          const SizedBox(height: 5),
+          SelectableText(value,
+              style: const TextStyle(fontSize: 12.5, height: 1.4)),
+        ],
+      ),
+    );
+  }
+
+  Widget buildDetailsPanel(SearchResult r) {
+    final busy = progress.containsKey(r.key);
+    final downloaded = done.contains(r.key);
+    return Container(
+      color: AppColors.panel,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            height: 44,
+            padding: const EdgeInsets.only(left: 16, right: 8),
+            decoration: const BoxDecoration(
+              border: Border(bottom: BorderSide(color: AppColors.line)),
+            ),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text('DETALHES DA MÍDIA',
+                      style: TextStyle(
+                          fontSize: 11,
+                          letterSpacing: 0.9,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textDim)),
+                ),
+                ToolButton(
+                  icon: Icons.close,
+                  tooltip: 'Fechar detalhes',
+                  onPressed: () => setState(() => selectedResult = null),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(5),
+                      child: SizedBox(
+                        width: 144,
+                        height: 144,
+                        child: r.imageUrl.isEmpty
+                            ? Container(
+                                color: AppColors.raised,
+                                child: const Icon(Icons.music_note,
+                                    size: 48, color: AppColors.textDim),
+                              )
+                            : Image.network(
+                                r.imageUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  color: AppColors.raised,
+                                  child: const Icon(Icons.music_note,
+                                      size: 48, color: AppColors.textDim),
+                                ),
+                              ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(r.title,
+                      textAlign: TextAlign.left,
+                      style: const TextStyle(
+                          fontSize: 17, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 5),
+                  Text(r.artist,
+                      style: const TextStyle(
+                          fontSize: 13, color: AppColors.textDim)),
+                  const SizedBox(height: 22),
+                  const Divider(height: 1, color: AppColors.line),
+                  const SizedBox(height: 18),
+                  detailField('Fonte',
+                      r.source == SearchSource.youtube ? 'YouTube' : 'Jamendo'),
+                  detailField('Duração', shortTime(r.durationMs)),
+                  detailField('ID da mídia', r.id),
+                  detailField('Chave interna', r.key),
+                  detailField('URL de stream', r.streamUrl),
+                  detailField('URL da imagem', r.imageUrl),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(child: buildPreviewButton(r)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: AppButton(
+                          label: downloaded
+                              ? 'Baixada'
+                              : (busy ? 'Baixando…' : 'Baixar MP3'),
+                          icon: downloaded ? Icons.check : Icons.download,
+                          primary: true,
+                          expand: true,
+                          onPressed: busy || downloaded ? null : () => download(r),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
