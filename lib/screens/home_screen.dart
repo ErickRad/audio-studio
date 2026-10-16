@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/ffmpeg_runner.dart';
+import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/tutorial_overlay.dart';
 import '../widgets/ui_kit.dart';
 import 'converter_screen.dart';
 import 'editor_screen.dart';
@@ -24,11 +26,28 @@ class _HomeScreenState extends State<HomeScreen> {
 
   int index = 0;
   bool? ffmpegOk;
+  bool showTutorial = false;
 
   @override
   void initState() {
     super.initState();
     checkFfmpeg();
+    SettingsService.tutorialSeen().then((seen) {
+      if (seen) return;
+      Future<void>.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) setState(() => showTutorial = true);
+      });
+    });
+  }
+
+  void openTutorial() => setState(() => showTutorial = true);
+
+  void closeTutorial() {
+    SettingsService.markTutorialSeen();
+    setState(() {
+      showTutorial = false;
+      index = 0;
+    });
   }
 
   Future<void> checkFfmpeg() async {
@@ -63,6 +82,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Positioned.fill(child: buildShell()),
+        if (showTutorial)
+          Positioned.fill(
+            child: TutorialOverlay(
+              steps: buildTutorialSteps(),
+              onTab: (i) => setState(() => index = i),
+              onClose: closeTutorial,
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget buildShell() {
     return Scaffold(
       body: Column(
         children: [
@@ -86,11 +121,21 @@ class _HomeScreenState extends State<HomeScreen> {
                           TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                     ),
                   ),
-                  SidebarTabs(
-                    items: tabs,
-                    index: index,
-                    onChanged: (i) => setState(() => index = i),
+                  KeyedSubtree(
+                    key: TutorialKeys.tabs,
+                    child: SidebarTabs(
+                      items: tabs,
+                      index: index,
+                      onChanged: (i) => setState(() => index = i),
+                    ),
                   ),
+                  const Spacer(),
+                  ToolButton(
+                    icon: Icons.help_outline,
+                    tooltip: 'Ver o tutorial novamente',
+                    onPressed: openTutorial,
+                  ),
+                  const SizedBox(width: 8),
                 ],
               ),
             ),
@@ -101,7 +146,10 @@ class _HomeScreenState extends State<HomeScreen> {
               index: index,
               children: [
                 const SearchScreen(),
-                LibraryScreen(onOpenEditor: () => setState(() => index = 2)),
+                LibraryScreen(
+                  active: index == 1,
+                  onOpenEditor: () => setState(() => index = 2),
+                ),
                 EditorScreen(active: index == 2),
                 const ConverterScreen(),
               ],

@@ -6,6 +6,7 @@ import '../state/project_controller.dart';
 import '../widgets/export_flow.dart';
 import '../widgets/inspector_panel.dart';
 import '../widgets/timeline_view.dart';
+import '../widgets/tutorial_overlay.dart';
 import '../widgets/transport_bar.dart';
 
 class EditorScreen extends StatefulWidget {
@@ -153,9 +154,20 @@ class _EditorScreenState extends State<EditorScreen> {
       onKeyEvent: _handleKeyEvent,
       child: Column(
         children: [
-          TransportBar(onExport: () => startExport(context)),
-          const Expanded(child: TimelineView()),
-          const InspectorPanel(),
+          KeyedSubtree(
+            key: TutorialKeys.editorTransport,
+            child: TransportBar(onExport: () => startExport(context)),
+          ),
+          Expanded(
+            child: KeyedSubtree(
+              key: TutorialKeys.editorTimeline,
+              child: const TimelineView(),
+            ),
+          ),
+          KeyedSubtree(
+            key: TutorialKeys.editorInspector,
+            child: const InspectorPanel(),
+          ),
         ],
       ),
     );

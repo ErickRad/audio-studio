@@ -4,6 +4,8 @@ class LibraryItem {
   final String artist;
   final String path;
   final int durationMs;
+  final String coverPath;
+  final String folderId;
 
   const LibraryItem({
     required this.id,
@@ -11,7 +13,26 @@ class LibraryItem {
     required this.artist,
     required this.path,
     required this.durationMs,
+    this.coverPath = '',
+    this.folderId = '',
   });
+
+  LibraryItem copyWith({
+    String? title,
+    String? artist,
+    String? coverPath,
+    String? folderId,
+  }) {
+    return LibraryItem(
+      id: id,
+      title: title ?? this.title,
+      artist: artist ?? this.artist,
+      path: path,
+      durationMs: durationMs,
+      coverPath: coverPath ?? this.coverPath,
+      folderId: folderId ?? this.folderId,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -19,6 +40,8 @@ class LibraryItem {
         'artist': artist,
         'path': path,
         'durationMs': durationMs,
+        'coverPath': coverPath,
+        'folderId': folderId,
       };
 
   factory LibraryItem.fromJson(Map<String, dynamic> json) => LibraryItem(
@@ -27,5 +50,7 @@ class LibraryItem {
         artist: json['artist'] as String,
         path: json['path'] as String,
         durationMs: json['durationMs'] as int,
+        coverPath: (json['coverPath'] as String?) ?? '',
+        folderId: (json['folderId'] as String?) ?? '',
       );
 }

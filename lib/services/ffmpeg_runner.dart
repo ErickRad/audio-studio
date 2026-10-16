@@ -65,6 +65,20 @@ class FfmpegRunner {
     }
   }
 
+  static Future<String> capture(List<String> args) async {
+    try {
+      final executable = await DependencyManager.instance.resolve('ffmpeg');
+      final result = await Process.run(
+        executable,
+        ['-hide_banner', '-nostats', ...args],
+      );
+      return '${result.stderr}';
+    } catch (e, stack) {
+      AppLog.error('ffmpeg', e, stack);
+      return '';
+    }
+  }
+
   static Future<int> probeDurationMs(String path) async {
     try {
       final executable = await DependencyManager.instance.resolve('ffprobe');

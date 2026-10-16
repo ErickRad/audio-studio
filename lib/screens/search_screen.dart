@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/search_result.dart';
@@ -10,6 +12,7 @@ import '../state/project_controller.dart';
 import '../theme/app_theme.dart';
 import '../utils.dart';
 import '../widgets/diagnostics_dialog.dart';
+import '../widgets/tutorial_overlay.dart';
 import '../widgets/ui_kit.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -28,6 +31,7 @@ class _SearchScreenState extends State<SearchScreen> {
   final Map<String, double> progress = {};
   final Map<String, String> stage = {};
   final Set<String> done = {};
+  Timer? hoverTimer;
   SearchSource source = SearchSource.youtube;
   SearchResult? selectedResult;
   bool loading = false;
@@ -36,6 +40,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   void dispose() {
+    hoverTimer?.cancel();
     queryController.dispose();
     youtube.dispose();
     super.dispose();
@@ -60,6 +65,11 @@ class _SearchScreenState extends State<SearchScreen> {
         results.addAll(found);
         searched = true;
       });
+      if (source == SearchSource.youtube) {
+        for (final r in found.take(2)) {
+          youtube.prefetch(r.id);
+        }
+      }
     } catch (e, stack) {
       AppLog.error('busca', e, stack);
       if (!mounted) return;
@@ -80,7 +90,7 @@ class _SearchScreenState extends State<SearchScreen> {
       stage[result.key] = 'Iniciando';
     });
     try {
-      final path = await downloader.download(
+      final downloaded = await downloader.download(
         result,
         onProgress: (v) {
           if (mounted) setState(() => progress[result.key] = v);
@@ -90,7 +100,11 @@ class _SearchScreenState extends State<SearchScreen> {
         },
       );
       await project.addToLibrary(
-          title: result.title, artist: result.artist, path: path);
+        title: result.title,
+        artist: result.artist,
+        path: downloaded.path,
+        coverPath: downloaded.coverPath,
+      );
       if (mounted) setState(() => done.add(result.key));
       messenger.showSnackBar(
           SnackBar(content: Text('Adicionada à biblioteca: ${result.title}')));
@@ -115,6 +129,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget buildToolbar() {
     return Container(
+      key: TutorialKeys.searchToolbar,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: const BoxDecoration(
         color: AppColors.panel,
@@ -213,7 +228,7 @@ class _SearchScreenState extends State<SearchScreen> {
     final error = r.source == SearchSource.youtube
         ? await PreviewService.instance.toggle(
             r.key,
-            fileResolver: () => youtube.cachedAudio(r.id, (_) {}),
+            urlResolver: () => youtube.previewUrl(r.id),
           )
         : await PreviewService.instance.toggle(r.key, url: r.streamUrl);
     if (error != null && mounted) {
@@ -244,6 +259,21 @@ class _SearchScreenState extends State<SearchScreen> {
     final subtitle = busy
         ? '${stage[r.key] ?? ''}${percent > 0 && percent < 100 ? ' · $percent%' : ''}'
         : '${r.artist} · ${shortTime(r.durationMs)}';
+    return MouseRegion(
+      onEnter: (_) {
+        if (r.source != SearchSource.youtube) return;
+        hoverTimer?.cancel();
+        hoverTimer = Timer(
+          const Duration(milliseconds: 180),
+          () => youtube.prefetch(r.id),
+        );
+      },
+      onExit: (_) => hoverTimer?.cancel(),
+      child: buildMediaRow(r, busy, subtitle),
+    );
+  }
+
+  Widget buildMediaRow(SearchResult r, bool busy, String subtitle) {
     return MediaRow(
       leading: ThumbBox(imageUrl: r.imageUrl),
       title: r.title,
@@ -387,7 +417,8 @@ class _SearchScreenState extends State<SearchScreen> {
                           icon: downloaded ? Icons.check : Icons.download,
                           primary: true,
                           expand: true,
-                          onPressed: busy || downloaded ? null : () => download(r),
+                          onPressed:
+                              busy || downloaded ? null : () => download(r),
                         ),
                       ),
                     ],
@@ -406,7 +437,12 @@ class _SearchScreenState extends State<SearchScreen> {
     return Column(
       children: [
         buildToolbar(),
-        Expanded(child: buildBody()),
+        Expanded(
+          child: KeyedSubtree(
+            key: TutorialKeys.searchBody,
+            child: buildBody(),
+          ),
+        ),
       ],
     );
   }

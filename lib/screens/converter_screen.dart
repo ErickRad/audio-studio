@@ -6,12 +6,14 @@ import 'package:provider/provider.dart';
 import '../models/audio_formats.dart';
 import '../models/library_item.dart';
 import '../services/audio_engine.dart';
+import '../services/cover_service.dart';
 import '../services/ffmpeg_runner.dart';
 import '../services/storage_service.dart';
 import '../services/system_service.dart';
 import '../state/project_controller.dart';
 import '../theme/app_theme.dart';
 import '../widgets/format_picker.dart';
+import '../widgets/tutorial_overlay.dart';
 import '../widgets/ui_kit.dart';
 
 enum JobState { waiting, running, done, failed }
@@ -22,6 +24,7 @@ class ConvertJob {
   JobState state = JobState.waiting;
   String? output;
   String message = '';
+  String coverPath = '';
 
   ConvertJob(this.path) : name = p.basenameWithoutExtension(path);
 }
@@ -48,13 +51,22 @@ class _ConverterScreenState extends State<ConverterScreen> {
     });
   }
 
-  void addPaths(Iterable<String> paths) {
+  void addPaths(Iterable<String> paths, {String coverPath = ''}) {
+    final added = <ConvertJob>[];
     setState(() {
       for (final path in paths) {
         if (jobs.any((j) => j.path == path)) continue;
-        jobs.add(ConvertJob(path));
+        final job = ConvertJob(path)..coverPath = coverPath;
+        jobs.add(job);
+        added.add(job);
       }
     });
+    for (final job in added) {
+      if (job.coverPath.isNotEmpty) continue;
+      CoverService.extractEmbedded(job.path).then((cover) {
+        if (cover != null && mounted) setState(() => job.coverPath = cover);
+      });
+    }
   }
 
   Future<void> pickFiles() async {
@@ -97,7 +109,13 @@ class _ConverterScreenState extends State<ConverterScreen> {
       });
       final out = uniquePath(
           dir, StorageService.safeName(job.name), options.format.ext);
-      final ok = await AudioEngine.convert(job.path, out, options);
+      final ok = await AudioEngine.convert(
+        job.path,
+        out,
+        options,
+        coverPath: job.coverPath,
+        title: job.name,
+      );
       if (!mounted) return;
       setState(() {
         job.state = ok ? JobState.done : JobState.failed;
@@ -109,6 +127,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
           title: p.basenameWithoutExtension(out),
           artist: 'Convertido',
           path: out,
+          coverPath: job.coverPath,
         );
       }
     }
@@ -152,7 +171,8 @@ class _ConverterScreenState extends State<ConverterScreen> {
             color: AppColors.raised,
             constraints: const BoxConstraints(
                 minWidth: 280, maxWidth: 460, maxHeight: 420),
-            onSelected: (item) => addPaths([item.path]),
+            onSelected: (item) =>
+                addPaths([item.path], coverPath: item.coverPath),
             itemBuilder: (_) => library.isEmpty
                 ? const [
                     PopupMenuItem<LibraryItem>(
@@ -166,8 +186,16 @@ class _ConverterScreenState extends State<ConverterScreen> {
                       PopupMenuItem<LibraryItem>(
                         value: item,
                         height: 32,
-                        child: Text(item.title,
-                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                        child: Row(
+                          children: [
+                            ThumbBox(filePath: item.coverPath, size: 24),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(item.title,
+                                  maxLines: 1, overflow: TextOverflow.ellipsis),
+                            ),
+                          ],
+                        ),
                       ),
                   ],
             child: Container(
@@ -204,25 +232,45 @@ class _ConverterScreenState extends State<ConverterScreen> {
 
   Widget buildJobRow(ConvertJob job) {
     return MediaRow(
-      leading: Container(
+      leading: SizedBox(
         width: 40,
         height: 40,
-        decoration: BoxDecoration(
-          color: AppColors.raised,
-          borderRadius: BorderRadius.circular(3),
-        ),
-        child: Icon(
-          switch (job.state) {
-            JobState.done => Icons.check,
-            JobState.failed => Icons.error_outline,
-            _ => Icons.audio_file_outlined,
-          },
-          size: 18,
-          color: switch (job.state) {
-            JobState.done => AppColors.accent,
-            JobState.failed => AppColors.danger,
-            _ => AppColors.textDim,
-          },
+        child: Stack(
+          children: [
+            job.coverPath.isNotEmpty
+                ? ThumbBox(filePath: job.coverPath)
+                : Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.raised,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                    child: const Icon(Icons.audio_file_outlined,
+                        size: 18, color: AppColors.textDim),
+                  ),
+            if (job.state == JobState.done || job.state == JobState.failed)
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: const BoxDecoration(
+                    color: Color(0xCC000000),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    job.state == JobState.done
+                        ? Icons.check
+                        : Icons.error_outline,
+                    size: 12,
+                    color: job.state == JobState.done
+                        ? AppColors.accent
+                        : AppColors.danger,
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
       title: job.name,
@@ -249,6 +297,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
   Widget buildOptionsPanel() {
     final pending = jobs.where((j) => j.state != JobState.done).length;
     return Container(
+      key: TutorialKeys.converterOptions,
       width: 320,
       decoration: const BoxDecoration(
         color: AppColors.panel,
@@ -310,29 +359,32 @@ class _ConverterScreenState extends State<ConverterScreen> {
     return Row(
       children: [
         Expanded(
-          child: Column(
-            children: [
-              buildQueueToolbar(library),
-              Expanded(
-                child: jobs.isEmpty
-                    ? const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(24),
-                          child: Text(
-                            'Adicione arquivos de áudio ou vídeo, ou itens da biblioteca, e escolha o formato de saída.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                                fontSize: 13, color: AppColors.textDim),
+          child: KeyedSubtree(
+            key: TutorialKeys.converterQueue,
+            child: Column(
+              children: [
+                buildQueueToolbar(library),
+                Expanded(
+                  child: jobs.isEmpty
+                      ? const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(24),
+                            child: Text(
+                              'Adicione arquivos de áudio ou vídeo, ou itens da biblioteca, e escolha o formato de saída.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                  fontSize: 13, color: AppColors.textDim),
+                            ),
                           ),
+                        )
+                      : ListView.builder(
+                          itemCount: jobs.length,
+                          itemExtent: 54,
+                          itemBuilder: (context, i) => buildJobRow(jobs[i]),
                         ),
-                      )
-                    : ListView.builder(
-                        itemCount: jobs.length,
-                        itemExtent: 54,
-                        itemBuilder: (context, i) => buildJobRow(jobs[i]),
-                      ),
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
         ),
         buildOptionsPanel(),

@@ -2,6 +2,7 @@ class AudioClip {
   final String id;
   final String label;
   final String path;
+  final String coverPath;
   final int sourceMs;
   final int inMs;
   final int outMs;
@@ -21,6 +22,7 @@ class AudioClip {
     required this.id,
     required this.label,
     required this.path,
+    this.coverPath = '',
     required this.sourceMs,
     required this.inMs,
     required this.outMs,
@@ -61,6 +63,7 @@ class AudioClip {
       id: id ?? this.id,
       label: label,
       path: path,
+      coverPath: coverPath,
       sourceMs: sourceMs,
       inMs: inMs ?? this.inMs,
       outMs: outMs ?? this.outMs,
@@ -82,6 +85,7 @@ class AudioClip {
         id: id,
         label: label,
         path: path,
+        coverPath: coverPath,
         sourceMs: sourceMs,
         inMs: inMs,
         outMs: outMs,
@@ -92,6 +96,7 @@ class AudioClip {
         'id': id,
         'label': label,
         'path': path,
+        'coverPath': coverPath,
         'sourceMs': sourceMs,
         'inMs': inMs,
         'outMs': outMs,
@@ -112,6 +117,7 @@ class AudioClip {
         id: json['id'] as String,
         label: json['label'] as String,
         path: json['path'] as String,
+        coverPath: (json['coverPath'] as String?) ?? '',
         sourceMs: json['sourceMs'] as int,
         inMs: json['inMs'] as int,
         outMs: json['outMs'] as int,

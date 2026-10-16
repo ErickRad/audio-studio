@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
+import 'package:media_kit/media_kit.dart';
 import 'package:provider/provider.dart';
 
 import 'screens/home_screen.dart';
@@ -24,6 +25,7 @@ void main() {
 
   AppLog.info('app', 'iniciado');
 
+  MediaKit.ensureInitialized();
   JustAudioMediaKit.ensureInitialized();
 
   runApp(const AudioStudioApp());
@@ -61,7 +63,7 @@ class DependencyBootstrap extends StatefulWidget {
 }
 
 class _DependencyBootstrapState extends State<DependencyBootstrap> {
-  String _message = 'Verificando dependências...';
+  String _message = 'Seja bem-vino';
   double _progress = 0;
   String? _error;
   bool _loading = true;
@@ -77,7 +79,7 @@ class _DependencyBootstrapState extends State<DependencyBootstrap> {
       setState(() {
         _loading = true;
         _error = null;
-        _message = 'Verificando dependências...';
+        _message = 'Seja bem-vindo';
         _progress = 0;
       });
     }

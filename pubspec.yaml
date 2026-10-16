@@ -23,6 +23,7 @@ dependencies:
   archive: ^4.5.0
   image: ^4.11.1
   flutter_launcher_icons: ^0.14.4
+  media_kit: ^1.2.6
 
 flutter:
   uses-material-design: true

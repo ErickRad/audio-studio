@@ -98,7 +98,6 @@ class _TimelineViewState extends State<TimelineView> {
     }
   }
 
-  
   double clampScrollOffset(ScrollController controller, double target) {
     if (!controller.hasClients) return 0;
     final position = controller.position;
@@ -196,9 +195,8 @@ class _TimelineViewState extends State<TimelineView> {
   ) {
     // Inclui o deslocamento provocado pelo auto-scroll. Assim, manter o
     // ponteiro parado na borda continua movendo o clipe pela timeline.
-    final scrollDelta = hScroll.hasClients
-        ? hScroll.offset - _dragStartScrollOffset
-        : 0.0;
+    final scrollDelta =
+        hScroll.hasClients ? hScroll.offset - _dragStartScrollOffset : 0.0;
     final timelineDeltaMs =
         ((global.dx - dragStart.dx + scrollDelta) / pxPerMs).roundToDouble();
 
@@ -244,9 +242,8 @@ class _TimelineViewState extends State<TimelineView> {
         final intensity = ((edgeZone - local.dx) / edgeZone).clamp(0.15, 1.8);
         delta = -10 * intensity;
       } else if (local.dx > viewportWidth - edgeZone) {
-        final intensity =
-            ((local.dx - (viewportWidth - edgeZone)) / edgeZone)
-                .clamp(0.15, 1.8);
+        final intensity = ((local.dx - (viewportWidth - edgeZone)) / edgeZone)
+            .clamp(0.15, 1.8);
         delta = 10 * intensity;
       }
 
@@ -254,8 +251,7 @@ class _TimelineViewState extends State<TimelineView> {
         final before = hScroll.offset;
         scrollTimeline(delta);
         if ((hScroll.offset - before).abs() > 0.01) {
-          _applyDragPosition(c, clipId, _lastDragGlobal,
-              c.pxPerSecond / 1000);
+          _applyDragPosition(c, clipId, _lastDragGlobal, c.pxPerSecond / 1000);
         }
       }
     });
@@ -420,7 +416,6 @@ class _TimelineViewState extends State<TimelineView> {
                 ],
               ),
             ),
-
           ],
         ),
       ),
@@ -541,15 +536,25 @@ class _TimelineViewState extends State<TimelineView> {
                       left: 6,
                       right: 6,
                       top: 2,
-                      child: Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white.withAlpha(235),
-                        ),
+                      child: Row(
+                        children: [
+                          if (clip.coverPath.isNotEmpty && width > 70) ...[
+                            ThumbBox(filePath: clip.coverPath, size: 13),
+                            const SizedBox(width: 5),
+                          ],
+                          Expanded(
+                            child: Text(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white.withAlpha(235),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     Positioned(

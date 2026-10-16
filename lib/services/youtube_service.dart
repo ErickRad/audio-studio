@@ -9,8 +9,8 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart'
 
 import '../models/search_result.dart';
 import 'app_log.dart';
+import 'audio_stream_service.dart';
 import 'dependency_manager.dart';
-import 'ffmpeg_runner.dart';
 
 class YoutubeService {
   final YoutubeExplode yt = YoutubeExplode();
@@ -18,6 +18,24 @@ class YoutubeService {
   final Map<String, Future<String>> inflight = {};
 
   List<String>? jsArgsCache;
+  bool? ytDlpOk;
+
+  late final AudioStreamService streams = AudioStreamService(
+    yt: yt,
+    cacheDir: cacheDir,
+    jsArgs: jsRuntimeArgs,
+  );
+
+  Future<String> previewUrl(String videoId) async {
+    try {
+      return await streams.localUrl(videoId);
+    } catch (e) {
+      AppLog.error('prévia', 'streaming falhou, baixando o arquivo: $e');
+      return cachedAudio(videoId, (_) {});
+    }
+  }
+
+  void prefetch(String videoId) => streams.prefetch(videoId);
 
   SearchResult fromVideo(Video v) => SearchResult(
         source: SearchSource.youtube,
@@ -167,22 +185,24 @@ class YoutubeService {
     final existing = findFile(dir, 'yt_$videoId');
 
     if (existing != null) {
-      final duration = await FfmpegRunner.probeDurationMs(existing.path);
+      AppLog.info('youtube', 'usando cache: ${existing.path}');
+      onProgress(1);
+      return existing.path;
+    }
 
-      if (duration > 0) {
-        AppLog.info('youtube', 'usando cache: ${existing.path}');
-        onProgress(1);
-        return existing.path;
-      }
-
-      AppLog.info(
-        'youtube',
-        'cache inválido, removendo: ${existing.path}',
-      );
-
+    try {
+      final session = await streams.session(videoId);
+      void listener() => onProgress(session.progress.value);
+      session.progress.addListener(listener);
       try {
-        await existing.delete();
-      } catch (_) {}
+        final file = await session.result;
+        onProgress(1);
+        return file.path;
+      } finally {
+        session.progress.removeListener(listener);
+      }
+    } catch (e) {
+      AppLog.error('youtube', 'streaming falhou, usando método completo: $e');
     }
 
     final running = inflight[videoId];
@@ -320,11 +340,13 @@ class YoutubeService {
   }
 
   Future<bool> ytDlpAvailable() async {
+    final known = ytDlpOk;
+    if (known != null) return known;
     try {
       final executable = await _ytDlpPath();
       final result = await Process.run(executable, ['--version']);
-
-      return result.exitCode == 0;
+      ytDlpOk = result.exitCode == 0;
+      return ytDlpOk!;
     } catch (e) {
       AppLog.error('yt-dlp', e);
       return false;
@@ -475,6 +497,7 @@ class YoutubeService {
   }
 
   void dispose() {
+    streams.dispose();
     yt.close();
   }
 }

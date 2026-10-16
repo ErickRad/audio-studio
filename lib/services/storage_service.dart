@@ -14,6 +14,13 @@ class StorageService {
 
   static Future<Directory> exportDir() => ensure('exports');
 
+  static Future<Directory> coversDir() => ensure('covers');
+
+  static Future<File> foldersFile() async {
+    final base = await getApplicationDocumentsDirectory();
+    return File(p.join(base.path, 'folders.json'));
+  }
+
   static Future<File> libraryFile() async {
     final base = await getApplicationDocumentsDirectory();
     return File(p.join(base.path, 'library.json'));

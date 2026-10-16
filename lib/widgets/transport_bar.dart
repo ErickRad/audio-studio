@@ -72,8 +72,7 @@ class TransportBar extends StatelessWidget {
                             child: Icon(
                               c.playing ? Icons.pause : Icons.play_arrow,
                               size: 20,
-                              color:
-                                  canPlay ? Colors.white : AppColors.textDim,
+                              color: canPlay ? Colors.white : AppColors.textDim,
                             ),
                           ),
                         ),
@@ -123,8 +122,7 @@ class TransportBar extends StatelessWidget {
                     ToolButton(
                       icon: Icons.delete_outline,
                       tooltip: 'Excluir trecho (Delete)',
-                      onPressed:
-                          hasSelection ? () => c.deleteSelected() : null,
+                      onPressed: hasSelection ? () => c.deleteSelected() : null,
                     ),
                     ToolButton(
                       icon: Icons.compress,
@@ -137,8 +135,7 @@ class TransportBar extends StatelessWidget {
                       icon: Icons.copy,
                       tooltip: 'Duplicar trecho (Ctrl+D)',
                       iconSize: 16,
-                      onPressed:
-                          hasSelection ? c.duplicateSelected : null,
+                      onPressed: hasSelection ? c.duplicateSelected : null,
                     ),
                     const VDivider(),
                     ToolButton(

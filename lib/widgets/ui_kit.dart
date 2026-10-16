@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:ui' show FontFeature;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -674,6 +675,8 @@ class MediaRow extends StatelessWidget {
   final double? progress;
   final VoidCallback? onTap;
   final VoidCallback? onDoubleTap;
+  final GestureTapDownCallback? onTapDown;
+  final bool selected;
 
   const MediaRow({
     super.key,
@@ -685,18 +688,22 @@ class MediaRow extends StatelessWidget {
     this.progress,
     this.onTap,
     this.onDoubleTap,
+    this.onTapDown,
+    this.selected = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       hoverColor: AppColors.hover,
-      onTap: onTap,
+      onTap: onTap ?? (onTapDown != null ? () {} : null),
       onDoubleTap: onDoubleTap,
+      onTapDown: onTapDown,
       child: Container(
         height: 54,
         padding: const EdgeInsets.fromLTRB(10, 0, 6, 0),
         decoration: BoxDecoration(
+          color: selected ? AppColors.accent.withAlpha(46) : null,
           border: Border(
             bottom: BorderSide(color: AppColors.line.withAlpha(120)),
           ),
@@ -755,30 +762,43 @@ class MediaRow extends StatelessWidget {
 
 class ThumbBox extends StatelessWidget {
   final String imageUrl;
+  final String filePath;
+  final double size;
 
-  const ThumbBox({super.key, required this.imageUrl});
+  const ThumbBox({
+    super.key,
+    this.imageUrl = '',
+    this.filePath = '',
+    this.size = 40,
+  });
 
   @override
   Widget build(BuildContext context) {
     final placeholder = Container(
-      width: 40,
-      height: 40,
+      width: size,
+      height: size,
       color: AppColors.raised,
-      child: const Icon(Icons.music_note, size: 18, color: AppColors.textDim),
+      child:
+          Icon(Icons.music_note, size: size * 0.45, color: AppColors.textDim),
     );
+    Widget image = placeholder;
+    if (filePath.isNotEmpty && File(filePath).existsSync()) {
+      image = Image.file(
+        File(filePath),
+        fit: BoxFit.cover,
+        cacheWidth: (size * 3).round(),
+        errorBuilder: (_, __, ___) => placeholder,
+      );
+    } else if (imageUrl.isNotEmpty) {
+      image = Image.network(
+        imageUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => placeholder,
+      );
+    }
     return ClipRRect(
       borderRadius: BorderRadius.circular(3),
-      child: SizedBox(
-        width: 40,
-        height: 40,
-        child: imageUrl.isEmpty
-            ? placeholder
-            : Image.network(
-                imageUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => placeholder,
-              ),
-      ),
+      child: SizedBox(width: size, height: size, child: image),
     );
   }
 }

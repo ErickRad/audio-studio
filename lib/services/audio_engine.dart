@@ -82,9 +82,43 @@ class AudioEngine {
     return args;
   }
 
-  static Future<bool> convert(String inPath, String outPath, ExportOptions o) {
-    return FfmpegRunner.run(
-        ['-y', '-i', inPath, '-vn', ...codecArgs(o), outPath]);
+  static Future<bool> convert(
+    String inPath,
+    String outPath,
+    ExportOptions o, {
+    String? coverPath,
+    String? title,
+    String? artist,
+  }) {
+    final withCover = coverPath != null &&
+        coverPath.isNotEmpty &&
+        o.formatId == 'mp3' &&
+        File(coverPath).existsSync();
+    final args = <String>['-y', '-i', inPath];
+    if (withCover) {
+      args.addAll(['-i', coverPath, '-map', '0:a:0', '-map', '1:v:0']);
+      args.addAll(['-c:v', 'copy']);
+    } else {
+      args.add('-vn');
+    }
+    args.addAll(codecArgs(o));
+    if (withCover) {
+      args.addAll([
+        '-id3v2_version',
+        '3',
+        '-metadata:s:v',
+        'title=Album cover',
+        '-metadata:s:v',
+        'comment=Cover (front)',
+      ]);
+    }
+    if (title != null && title.isNotEmpty)
+      args.addAll(['-metadata', 'title=$title']);
+    if (artist != null && artist.isNotEmpty) {
+      args.addAll(['-metadata', 'artist=$artist']);
+    }
+    args.add(outPath);
+    return FfmpegRunner.run(args);
   }
 
   static void addTempo(List<String> filters, double tempo) {

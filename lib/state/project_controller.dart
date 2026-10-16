@@ -6,13 +6,15 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import '../models/audio_formats.dart';
 import '../models/clip.dart';
+import '../models/library_folder.dart';
 import '../models/library_item.dart';
 import '../models/timeline_track.dart';
 import '../services/audio_engine.dart';
+import '../services/cover_service.dart';
 import '../services/ffmpeg_runner.dart';
+import '../services/live_engine.dart';
 import '../services/preview_service.dart';
 import '../services/storage_service.dart';
 
@@ -37,9 +39,15 @@ class ProjectController extends ChangeNotifier {
   ];
 
   final List<LibraryItem> library = [];
+  final List<LibraryFolder> folders = [];
+  String activeFolderId = '';
   final List<TimelineTrack> tracks = [];
   final Map<String, List<double>> peaks = {};
-  final AudioPlayer player = AudioPlayer();
+  late final LiveEngine engine = LiveEngine(
+    playhead: playhead,
+    tracks: tracks,
+    onStateChanged: onEngineState,
+  );
   final List<List<TimelineTrack>> undoStack = [];
   final List<List<TimelineTrack>> redoStack = [];
 
@@ -48,10 +56,8 @@ class ProjectController extends ChangeNotifier {
   final ValueNotifier<int> playhead = ValueNotifier<int>(0);
   double pxPerSecond = 60;
   bool playing = false;
-  bool dirty = true;
-  bool rendering = false;
+  bool get rendering => false;
   bool exporting = false;
-  String? renderedPath;
   String lastError = '';
   int idCounter = 0;
   Timer? saveTimer;
@@ -95,26 +101,14 @@ class ProjectController extends ChangeNotifier {
 
   Future<void> init() async {
     await loadLibrary();
+    await loadFolders();
     await loadProject();
-    player
-        .createPositionStream(
-      steps: 800,
-      minPeriod: const Duration(milliseconds: 30),
-      maxPeriod: const Duration(milliseconds: 60),
-    )
-        .listen((pos) {
-      if (!player.playing || dirty) return;
-      playheadMs = pos.inMilliseconds.clamp(0, projectEndMs).toInt();
-    });
-    player.playerStateStream.listen((state) {
-      if (state.processingState == ProcessingState.completed) {
-        player.pause();
-        playheadMs = projectEndMs;
-      }
-      playing =
-          state.playing && state.processingState != ProcessingState.completed;
-      notifyListeners();
-    });
+    engine.sync();
+  }
+
+  void onEngineState() {
+    playing = engine.playing;
+    notifyListeners();
   }
 
   Future<void> loadLibrary() async {
@@ -177,11 +171,92 @@ class ProjectController extends ChangeNotifier {
         jsonEncode({'tracks': tracks.map((t) => t.toJson()).toList()}));
   }
 
+  Future<void> loadFolders() async {
+    final file = await StorageService.foldersFile();
+    if (!await file.exists()) return;
+    try {
+      final data = jsonDecode(await file.readAsString()) as List;
+      folders
+        ..clear()
+        ..addAll(data.cast<Map<String, dynamic>>().map(LibraryFolder.fromJson));
+    } catch (_) {}
+    notifyListeners();
+  }
+
+  Future<void> saveFolders() async {
+    final file = await StorageService.foldersFile();
+    await file
+        .writeAsString(jsonEncode(folders.map((f) => f.toJson()).toList()));
+  }
+
+  Future<String?> createFolder(String name, {bool activate = true}) async {
+    final clean = name.trim();
+    if (clean.isEmpty) return null;
+    final folder = LibraryFolder(id: newId(), name: clean);
+    folders.add(folder);
+    if (activate) activeFolderId = folder.id;
+    await saveFolders();
+    notifyListeners();
+    return folder.id;
+  }
+
+  Future<void> renameFolder(String id, String name) async {
+    final clean = name.trim();
+    final index = folders.indexWhere((f) => f.id == id);
+    if (clean.isEmpty || index < 0) return;
+    folders[index] = folders[index].copyWith(name: clean);
+    await saveFolders();
+    notifyListeners();
+  }
+
+  Future<void> deleteFolder(String id) async {
+    folders.removeWhere((f) => f.id == id);
+    for (var i = 0; i < library.length; i++) {
+      if (library[i].folderId == id) {
+        library[i] = library[i].copyWith(folderId: '');
+      }
+    }
+    if (activeFolderId == id) activeFolderId = '';
+    await saveFolders();
+    await saveLibrary();
+    notifyListeners();
+  }
+
+  Future<void> moveItem(String itemId, String folderId) async {
+    final index = library.indexWhere((i) => i.id == itemId);
+    if (index < 0) return;
+    library[index] = library[index].copyWith(folderId: folderId);
+    await saveLibrary();
+    notifyListeners();
+  }
+
+  Future<void> moveItems(Iterable<String> itemIds, String folderId) async {
+    final ids = itemIds.toSet();
+    for (var i = 0; i < library.length; i++) {
+      if (ids.contains(library[i].id)) {
+        library[i] = library[i].copyWith(folderId: folderId);
+      }
+    }
+    await saveLibrary();
+    notifyListeners();
+  }
+
+  void setActiveFolder(String id) {
+    activeFolderId = id;
+    notifyListeners();
+  }
+
   Future<LibraryItem> addToLibrary({
     required String title,
     required String artist,
     required String path,
+    String coverPath = '',
+    String? folderId,
   }) async {
+    var cover = coverPath;
+    if (cover.isEmpty) {
+      cover = await CoverService.extractEmbedded(path) ?? '';
+    }
     var ms = await FfmpegRunner.probeDurationMs(path);
     if (ms <= 0) {
       final tmp = AudioPlayer();
@@ -198,6 +273,8 @@ class ProjectController extends ChangeNotifier {
       artist: artist,
       path: path,
       durationMs: ms,
+      coverPath: cover,
+      folderId: folderId ?? activeFolderId,
     );
     library.insert(0, item);
     await saveLibrary();
@@ -237,6 +314,12 @@ class ProjectController extends ChangeNotifier {
     try {
       await File(item.path).delete();
     } catch (_) {}
+    final cover = item.coverPath;
+    if (cover.isNotEmpty && !library.any((i) => i.coverPath == cover)) {
+      try {
+        await File(cover).delete();
+      } catch (_) {}
+    }
     await saveLibrary();
     afterEdit();
   }
@@ -280,10 +363,9 @@ class ProjectController extends ChangeNotifier {
   }
 
   void afterEdit() {
-    if (player.playing) player.pause();
-    dirty = true;
     final end = projectEndMs;
-    if (playheadMs > end) playheadMs = end;
+    if (!engine.playing && playheadMs > end) playheadMs = end;
+    engine.sync();
     scheduleSave();
     notifyListeners();
   }
@@ -375,6 +457,7 @@ class ProjectController extends ChangeNotifier {
       label: item.title,
       path: item.path,
       sourceMs: item.durationMs,
+      coverPath: item.coverPath,
       inMs: 0,
       outMs: item.durationMs,
       startMs: start,
@@ -445,7 +528,17 @@ class ProjectController extends ChangeNotifier {
   void updateClip(String id, AudioClip Function(AudioClip) change) {
     final loc = findClip(id);
     if (loc == null) return;
-    final next = change(tracks[loc.track].clips[loc.index]);
+    final previous = tracks[loc.track].clips[loc.index];
+    var next = change(previous);
+    if (engine.playing &&
+        next.speed != previous.speed &&
+        playheadMs >= previous.startMs &&
+        playheadMs < previous.endMs) {
+      final consumed = (playheadMs - previous.startMs) * previous.speed;
+      final newStart = max(0, (playheadMs - consumed / next.speed).round());
+      final adjusted = next.copyWith(startMs: newStart);
+      if (isValid(loc.track, adjusted)) next = adjusted;
+    }
     if (replaceClip(id, next)) afterEdit();
   }
 
@@ -538,61 +631,23 @@ class ProjectController extends ChangeNotifier {
   }
 
   Future<void> seek(int ms) async {
-    playheadMs = ms.clamp(0, projectEndMs).toInt();
-    if (!dirty && renderedPath != null) {
-      await player.seek(Duration(milliseconds: playheadMs));
-    }
-  }
-
-  Future<bool> renderPreview() async {
-    final end = projectEndMs;
-    final dir = await getTemporaryDirectory();
-    final out = p.join(
-        dir.path, 'preview_${DateTime.now().millisecondsSinceEpoch}.wav');
-    final args = AudioEngine.buildMixArgs(tracks, end, out, null);
-    if (args == null) return false;
-    rendering = true;
-    notifyListeners();
-    try {
-      final ok = await FfmpegRunner.run(args);
-      if (!ok) {
-        lastError = FfmpegRunner.lastLog;
-        return false;
-      }
-      final previous = renderedPath;
-      await player.setFilePath(out);
-      renderedPath = out;
-      dirty = false;
-      if (previous != null) {
-        try {
-          await File(previous).delete();
-        } catch (_) {}
-      }
-      return true;
-    } finally {
-      rendering = false;
-      notifyListeners();
-    }
+    final target = ms.clamp(0, projectEndMs).toInt();
+    playheadMs = target;
+    await engine.seek(target);
   }
 
   Future<void> togglePlay() async {
-    if (player.playing) {
-      await player.pause();
+    if (engine.playing) {
+      await engine.pause();
       return;
     }
-    if (projectEndMs == 0 || rendering) return;
+    if (projectEndMs == 0) return;
     await PreviewService.instance.stop();
-    if (playheadMs >= projectEndMs - 30) playheadMs = 0;
-    if (dirty || renderedPath == null) {
-      final ok = await renderPreview();
-      if (!ok) return;
-    }
-    await player.seek(Duration(milliseconds: playheadMs));
-    player.play();
+    await engine.play(playheadMs);
   }
 
   Future<void> stop() async {
-    await player.pause();
+    await engine.pause();
     await seek(0);
   }
 
@@ -601,7 +656,7 @@ class ProjectController extends ChangeNotifier {
     exporting = true;
     notifyListeners();
     try {
-      if (player.playing) await player.pause();
+      if (engine.playing) await engine.pause();
       final args =
           AudioEngine.buildMixArgs(tracks, projectEndMs, outPath, options);
       if (args == null) return null;
@@ -617,8 +672,8 @@ class ProjectController extends ChangeNotifier {
   @override
   void dispose() {
     saveTimer?.cancel();
+    engine.dispose();
     playhead.dispose();
-    player.dispose();
     super.dispose();
   }
 }
