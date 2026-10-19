@@ -1,27 +1,26 @@
-Audio Studio (desktop)
+## Instalação
 
-Requisitos do sistema
-  Linux:   sudo apt install ffmpeg libmpv-dev mpv zenity
-  Windows: ffmpeg no PATH (winget install Gyan.FFmpeg)
-  macOS:   brew install ffmpeg
+### Windows
 
-Rodar
-  flutter create --org com.example --platforms linux,windows,macos audio_studio
-  Substituir pubspec.yaml e a pasta lib/ pelos deste projeto
-  flutter pub get
-  Se aparecer erro em png_decoder.dart (decodeLazy), rode: flutter pub upgrade archive image
-  flutter run -d linux
+O Audio Studio foi desenvolvido para facilitar ao máximo a instalação. Você não precisa instalar Flutter, FFmpeg, FFprobe ou qualquer outra dependência manualmente.
 
-yt-dlp (recomendado): pipx install yt-dlp (a versão do apt costuma estar desatualizada)
-  Também é preciso deno ou nodejs instalado. O yt-dlp é tentado primeiro e o youtube_explode fica como alternativa.
-  O botão de chave inglesa na aba Buscar verifica todas as dependências e testa um download real.
+Siga estes passos para começar:
 
-Jamendo (opcional): client_id gratuito em devportal.jamendo.com, colocado em lib/config.dart
+1. **Baixe o arquivo ZIP** do Audio Studio disponibilizado na página de releases do projeto.
+2. **Extraia o arquivo ZIP.** Clique com o botão direito no arquivo baixado e selecione *Extrair Tudo...*.
+3. **Abra a pasta extraída** e localize o arquivo `audiostudio.exe`.
+4. **Dê um duplo clique** em `audiostudio.exe` para iniciar o aplicativo.
+5. **Aguarde a configuração inicial.** Na primeira abertura, o Audio Studio instalará automaticamente as dependências necessárias para seu funcionamento. Esse processo pode levar alguns minutos, dependendo da conexão com a internet.
 
-Atalhos do editor
-  Espaço reproduzir/pausar     S dividir no cursor
-  Delete excluir               Shift+Delete excluir e fechar o espaço
-  Ctrl+D duplicar              Ctrl+Z desfazer     Ctrl+Shift+Z refazer
-  Home / End início / fim      Setas mover o cursor (Shift = 5 s)
-  + / - zoom                   Ctrl+roda do mouse zoom no cursor
-  Botão direito em um trecho: menu de contexto
+Após a configuração inicial, o aplicativo estará pronto para uso.
+
+**Não é necessário instalar nada manualmente.** Basta extrair o ZIP e abrir o executável.
+
+> **Importante:** mantenha todos os arquivos extraídos na estrutura original de pastas. O `audiostudio.exe` pode depender de outros arquivos incluídos no pacote.
+
+### Solução de problemas
+
+- **A primeira abertura demora:** aguarde a conclusão do download e da configuração das dependências.
+- **A configuração inicial falha:** verifique sua conexão com a internet e tente abrir o aplicativo novamente.
+- **O aplicativo não inicia:** confirme se o ZIP foi extraído completamente e se todos os arquivos permanecem na pasta original.
+
