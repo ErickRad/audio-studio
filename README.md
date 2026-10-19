@@ -6,7 +6,7 @@ O Audio Studio foi desenvolvido para facilitar ao máximo a instalação. Você 
 
 Siga estes passos para começar:
 
-1. **Baixe o arquivo ZIP** do Audio Studio disponibilizado na página de releases do projeto.
+1. **Baixe o arquivo ZIP** do Audio Studio disponibilizado na página de releases do projeto [IGNORE SE VOCÊ JÁ TEM O ZIP FORNCECIDO POR MIM]
 2. **Extraia o arquivo ZIP.** Clique com o botão direito no arquivo baixado e selecione *Extrair Tudo...*.
 3. **Abra a pasta extraída** e localize o arquivo `audiostudio.exe`.
 4. **Dê um duplo clique** em `audiostudio.exe` para iniciar o aplicativo.
