@@ -63,7 +63,7 @@ class DependencyBootstrap extends StatefulWidget {
 }
 
 class _DependencyBootstrapState extends State<DependencyBootstrap> {
-  String _message = 'Seja bem-vino';
+  String _message = 'Seja bem-vindo!';
   double _progress = 0;
   String? _error;
   bool _loading = true;
@@ -79,7 +79,7 @@ class _DependencyBootstrapState extends State<DependencyBootstrap> {
       setState(() {
         _loading = true;
         _error = null;
-        _message = 'Seja bem-vindo';
+        _message = 'Seja bem-vindo!';
         _progress = 0;
       });
     }

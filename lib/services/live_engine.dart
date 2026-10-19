@@ -215,6 +215,8 @@ class LiveEngine {
     return f.isEmpty ? '' : 'lavfi=[${f.join(',')}]';
   }
 
+  double _shape(double x, int shape) => shape == 1 ? sin(x * pi / 2) : x;
+
   double _gainAt(_Voice v, int ph) {
     final c = v.clip!;
     var gain = c.volume * v.trackGain;
@@ -225,11 +227,13 @@ class LiveEngine {
     }
     final local = ph - c.startMs;
     if (c.fadeInMs > 0 && local < c.fadeInMs) {
-      gain *= (local / c.fadeInMs).clamp(0.0, 1.0);
+      gain *=
+          _shape((local / c.fadeInMs).clamp(0.0, 1.0).toDouble(), c.fadeShape);
     }
     final remaining = c.endMs - ph;
     if (c.fadeOutMs > 0 && remaining < c.fadeOutMs) {
-      gain *= (remaining / c.fadeOutMs).clamp(0.0, 1.0);
+      gain *= _shape(
+          (remaining / c.fadeOutMs).clamp(0.0, 1.0).toDouble(), c.fadeShape);
     }
     return gain.clamp(0.0, 4.0).toDouble();
   }

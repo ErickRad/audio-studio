@@ -6,6 +6,7 @@ class LibraryItem {
   final int durationMs;
   final String coverPath;
   final String folderId;
+  final bool favorite;
 
   const LibraryItem({
     required this.id,
@@ -15,6 +16,7 @@ class LibraryItem {
     required this.durationMs,
     this.coverPath = '',
     this.folderId = '',
+    this.favorite = false,
   });
 
   LibraryItem copyWith({
@@ -22,6 +24,7 @@ class LibraryItem {
     String? artist,
     String? coverPath,
     String? folderId,
+    bool? favorite,
   }) {
     return LibraryItem(
       id: id,
@@ -31,6 +34,7 @@ class LibraryItem {
       durationMs: durationMs,
       coverPath: coverPath ?? this.coverPath,
       folderId: folderId ?? this.folderId,
+      favorite: favorite ?? this.favorite,
     );
   }
 
@@ -42,6 +46,7 @@ class LibraryItem {
         'durationMs': durationMs,
         'coverPath': coverPath,
         'folderId': folderId,
+        'favorite': favorite,
       };
 
   factory LibraryItem.fromJson(Map<String, dynamic> json) => LibraryItem(
@@ -52,5 +57,6 @@ class LibraryItem {
         durationMs: json['durationMs'] as int,
         coverPath: (json['coverPath'] as String?) ?? '',
         folderId: (json['folderId'] as String?) ?? '',
+        favorite: (json['favorite'] as bool?) ?? false,
       );
 }

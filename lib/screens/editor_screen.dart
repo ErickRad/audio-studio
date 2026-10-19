@@ -29,14 +29,12 @@ class _EditorScreenState extends State<EditorScreen> {
 
   bool _focusIsTextInput(BuildContext? focusContext) {
     if (focusContext == null) return false;
-
     return focusContext.widget is EditableText ||
         focusContext.findAncestorWidgetOfExactType<EditableText>() != null;
   }
 
   bool _focusIsSlider(BuildContext? focusContext) {
     if (focusContext == null) return false;
-
     return focusContext.widget is Slider ||
         focusContext.findAncestorWidgetOfExactType<Slider>() != null;
   }
@@ -51,18 +49,13 @@ class _EditorScreenState extends State<EditorScreen> {
     }
 
     final focusContext = FocusManager.instance.primaryFocus?.context;
-
-    if (_focusIsTextInput(focusContext)) {
-      return KeyEventResult.ignored;
-    }
+    if (_focusIsTextInput(focusContext)) return KeyEventResult.ignored;
 
     final keys = HardwareKeyboard.instance;
     final command = keys.isControlPressed || keys.isMetaPressed;
     final shift = keys.isShiftPressed;
     final key = event.logicalKey;
 
-    // Quando um slider está focado, preserve as setas para ajustar seu valor,
-    // mas não bloqueie Delete, S, Espaço ou atalhos de edição.
     if (_focusIsSlider(focusContext) &&
         (key == LogicalKeyboardKey.arrowLeft ||
             key == LogicalKeyboardKey.arrowRight ||
@@ -71,8 +64,13 @@ class _EditorScreenState extends State<EditorScreen> {
       return KeyEventResult.ignored;
     }
 
+    if (command && key == LogicalKeyboardKey.keyA) {
+      if (event is KeyRepeatEvent) return KeyEventResult.handled;
+      project.selectAllClips();
+      return KeyEventResult.handled;
+    }
+
     if (key == LogicalKeyboardKey.space) {
-      // Evita alternar play/pause repetidamente ao manter Espaço pressionado.
       if (event is KeyRepeatEvent) return KeyEventResult.handled;
       project.togglePlay();
       return KeyEventResult.handled;
@@ -87,17 +85,14 @@ class _EditorScreenState extends State<EditorScreen> {
         }
         return KeyEventResult.handled;
       }
-
       if (key == LogicalKeyboardKey.keyY) {
         project.redo();
         return KeyEventResult.handled;
       }
-
       if (key == LogicalKeyboardKey.keyD) {
         project.duplicateSelected();
         return KeyEventResult.handled;
       }
-
       return KeyEventResult.ignored;
     }
 
@@ -116,34 +111,28 @@ class _EditorScreenState extends State<EditorScreen> {
       project.seek(0);
       return KeyEventResult.handled;
     }
-
     if (key == LogicalKeyboardKey.end) {
       project.seek(project.projectEndMs);
       return KeyEventResult.handled;
     }
-
     if (key == LogicalKeyboardKey.arrowLeft) {
       project.seek(project.playheadMs - (shift ? 5000 : 1000));
       return KeyEventResult.handled;
     }
-
     if (key == LogicalKeyboardKey.arrowRight) {
       project.seek(project.playheadMs + (shift ? 5000 : 1000));
       return KeyEventResult.handled;
     }
-
     if (key == LogicalKeyboardKey.equal ||
         key == LogicalKeyboardKey.numpadAdd) {
       project.zoom(1.25);
       return KeyEventResult.handled;
     }
-
     if (key == LogicalKeyboardKey.minus ||
         key == LogicalKeyboardKey.numpadSubtract) {
       project.zoom(0.8);
       return KeyEventResult.handled;
     }
-
     return KeyEventResult.ignored;
   }
 
@@ -161,7 +150,7 @@ class _EditorScreenState extends State<EditorScreen> {
           Expanded(
             child: KeyedSubtree(
               key: TutorialKeys.editorTimeline,
-              child: const TimelineView(),
+              child: TimelineView(),
             ),
           ),
           KeyedSubtree(

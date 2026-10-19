@@ -44,6 +44,7 @@ class _TimelineViewState extends State<TimelineView> {
   int dragOriginTrack = 0;
   double trimCarry = 0;
   bool rulerMouseDragging = false;
+  bool _isTrackpadPanning = false;
   bool _rulerPointerPressed = false;
   bool _rulerPointerMoved = false;
   Offset _rulerPointerDownGlobal = Offset.zero;
@@ -132,6 +133,7 @@ class _TimelineViewState extends State<TimelineView> {
   }
 
   void onPointerPanZoomUpdate(PointerPanZoomUpdateEvent event) {
+    _isTrackpadPanning = true;
     // Trackpads de notebooks podem emitir PanZoom em vez de ScrollEvent.
     // O offset é inverso ao movimento dos dedos: arrastar para a esquerda
     // revela conteúdo mais à direita, como em editores de vídeo.
@@ -160,7 +162,9 @@ class _TimelineViewState extends State<TimelineView> {
     Offset global,
   ) {
     Focus.of(context).requestFocus();
-    c.select(clip.id);
+    if (!c.selectedIds.contains(clip.id)) {
+      c.select(clip.id);
+    }
     c.setActiveTrack(trackIndex);
     c.beginEdit();
     dragStart = global;
@@ -201,7 +205,7 @@ class _TimelineViewState extends State<TimelineView> {
         ((global.dx - dragStart.dx + scrollDelta) / pxPerMs).roundToDouble();
 
     if (dragMode == ClipDragMode.move) {
-      c.moveClip(
+      c.previewMoveClip(
         id,
         dragOriginMs + timelineDeltaMs.round(),
         dragOriginTrack + ((global.dy - dragStart.dy) / trackHeight).round(),
@@ -215,9 +219,9 @@ class _TimelineViewState extends State<TimelineView> {
     if (deltaMs == 0) return;
     _lastAppliedDragMs = timelineDeltaMs;
     if (dragMode == ClipDragMode.trimLeft) {
-      c.trimLeft(id, deltaMs);
+      c.previewTrimLeft(id, deltaMs);
     } else {
-      c.trimRight(id, deltaMs);
+      c.previewTrimRight(id, deltaMs);
     }
   }
 
@@ -261,6 +265,11 @@ class _TimelineViewState extends State<TimelineView> {
     _edgeScrollTimer?.cancel();
     _edgeScrollTimer = null;
     _draggingClipId = null;
+  }
+
+  void _finishClipGesture(ProjectController c) {
+    _stopEdgeScroll();
+    c.finishInteractiveEdit();
   }
 
   Future<void> showClipMenu(
@@ -449,7 +458,7 @@ class _TimelineViewState extends State<TimelineView> {
 
   Widget buildClip(
       ProjectController c, AudioClip clip, int ti, double pxPerMs) {
-    final selected = clip.id == c.selectedId;
+    final selected = c.selectedIds.contains(clip.id) || clip.id == c.selectedId;
     final width = max(6.0, clip.durationMs * pxPerMs);
     final color = AppColors.trackColors[ti % AppColors.trackColors.length];
     final peaks = c.peaks[clip.path] ?? const <double>[];
@@ -481,30 +490,35 @@ class _TimelineViewState extends State<TimelineView> {
         child: MouseRegion(
           cursor: SystemMouseCursors.grab,
           child: GestureDetector(
-            // Gestos de pan do touchpad pertencem exclusivamente à navegação
-            // da timeline (Listener pai). Não deixe o recognizer do clipe
-            // interpretar o mesmo gesto de dois dedos como arrasto do clipe.
-            // Mouse/touch continuam podendo selecionar e arrastar normalmente.
-            supportedDevices: const {
-              PointerDeviceKind.mouse,
-              PointerDeviceKind.touch,
-              PointerDeviceKind.stylus,
-              PointerDeviceKind.invertedStylus,
-            },
+            // Mantém o arrasto de clipes com mouse e touch. O gesto de dois
+            // dedos é separado pelo Listener pai; se ele começar, o pan do
+            // clipe é ignorado para evitar que ambos movam a timeline/clipe.
             dragStartBehavior: DragStartBehavior.down,
             onTapUp: (d) {
               Focus.of(context).requestFocus();
-              c.select(clip.id);
+              final keys = HardwareKeyboard.instance;
+              final additive = keys.isControlPressed || keys.isMetaPressed;
+              c.select(clip.id, toggle: additive);
               c.setActiveTrack(ti);
               c.seek(clip.startMs + (d.localPosition.dx / pxPerMs).round());
             },
             onSecondaryTapDown: (d) => showClipMenu(
                 c, clip, ti, d.globalPosition, d.localPosition.dx / pxPerMs),
-            onPanStart: (d) => startDrag(
-                c, clip, ti, d.localPosition.dx, width, edge, d.globalPosition),
-            onPanUpdate: (d) => updateDrag(c, clip.id, d, pxPerMs),
-            onPanEnd: (_) => _stopEdgeScroll(),
-            onPanCancel: _stopEdgeScroll,
+            onPanStart: (d) {
+              if (_isTrackpadPanning) return;
+              startDrag(c, clip, ti, d.localPosition.dx, width, edge,
+                  d.globalPosition);
+            },
+            onPanUpdate: (d) {
+              if (_isTrackpadPanning) return;
+              updateDrag(c, clip.id, d, pxPerMs);
+            },
+            onPanEnd: (_) {
+              if (!_isTrackpadPanning) _finishClipGesture(c);
+            },
+            onPanCancel: () {
+              if (!_isTrackpadPanning) _finishClipGesture(c);
+            },
             child: Container(
               decoration: BoxDecoration(
                 color: color.withAlpha(selected ? 95 : 66),
@@ -536,25 +550,15 @@ class _TimelineViewState extends State<TimelineView> {
                       left: 6,
                       right: 6,
                       top: 2,
-                      child: Row(
-                        children: [
-                          if (clip.coverPath.isNotEmpty && width > 70) ...[
-                            ThumbBox(filePath: clip.coverPath, size: 13),
-                            const SizedBox(width: 5),
-                          ],
-                          Expanded(
-                            child: Text(
-                              title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.white.withAlpha(235),
-                              ),
-                            ),
-                          ),
-                        ],
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white.withAlpha(235),
+                        ),
                       ),
                     ),
                     Positioned(
@@ -646,6 +650,10 @@ class _TimelineViewState extends State<TimelineView> {
   }
 
   void onPointerPanZoomStart(PointerPanZoomStartEvent event) {
+    _isTrackpadPanning = true;
+    // Se o sistema iniciou pan-zoom, interrompe qualquer arrasto de clipe
+    // que tenha sido reconhecido no mesmo gesto.
+    _stopEdgeScroll();
     // Dois dedos no touchpad são exclusivamente navegação da timeline:
     // nunca devem ser interpretados como clique/arrasto do playhead.
     _rulerPointerPressed = false;
@@ -653,11 +661,16 @@ class _TimelineViewState extends State<TimelineView> {
     rulerMouseDragging = false;
   }
 
+  void onPointerPanZoomEnd(PointerPanZoomEndEvent event) {
+    _isTrackpadPanning = false;
+  }
+
   Widget buildLanes(ProjectController c, double pxPerMs, double contentHeight) {
     return Listener(
       key: _timelineViewportKey,
       onPointerPanZoomStart: onPointerPanZoomStart,
       onPointerPanZoomUpdate: onPointerPanZoomUpdate,
+      onPointerPanZoomEnd: onPointerPanZoomEnd,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final contentWidth = max(

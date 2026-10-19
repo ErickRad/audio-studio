@@ -26,6 +26,16 @@ class SettingsService {
     await f.writeAsString(jsonEncode(data));
   }
 
+  static Future<List<String>> searchHistory() async {
+    final data = await read();
+    final raw = data['searchHistory'];
+    if (raw is List) return raw.whereType<String>().toList();
+    return [];
+  }
+
+  static Future<void> saveSearchHistory(List<String> items) =>
+      write('searchHistory', items);
+
   static Future<bool> tutorialSeen() async {
     final data = await read();
     return data['tutorialSeen'] == true;

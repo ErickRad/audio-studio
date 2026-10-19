@@ -154,12 +154,13 @@ class AudioEngine {
     if ((c.volume - 1).abs() > 0.001)
       f.add('volume=${c.volume.toStringAsFixed(3)}');
     final dur = c.durationMs;
+    final curve = c.fadeShape == 1 ? ':curve=qsin' : '';
     if (c.fadeInMs > 0) {
-      f.add('afade=t=in:st=0:d=${sec(min(c.fadeInMs, dur))}');
+      f.add('afade=t=in:st=0:d=${sec(min(c.fadeInMs, dur))}$curve');
     }
     if (c.fadeOutMs > 0) {
       final fo = min(c.fadeOutMs, dur);
-      f.add('afade=t=out:st=${sec(dur - fo)}:d=${sec(fo)}');
+      f.add('afade=t=out:st=${sec(dur - fo)}:d=${sec(fo)}$curve');
     }
     f.add(conform);
     return f.join(',');

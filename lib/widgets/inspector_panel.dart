@@ -1,6 +1,9 @@
+import 'dart:async';
+import 'package:audio_studio/widgets/smart_join_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/clip.dart';
+import '../services/audio_analyzer.dart';
 import '../state/project_controller.dart';
 import '../theme/app_theme.dart';
 import '../utils.dart';
@@ -21,7 +24,7 @@ class InspectorPanel extends StatelessWidget {
         decoration: const BoxDecoration(
           border: Border(top: BorderSide(color: AppColors.line)),
         ),
-        child: clip == null ? buildEmpty() : buildBody(c, clip),
+        child: clip == null ? buildEmpty() : buildBody(context, c, clip),
       ),
     );
   }
@@ -62,7 +65,7 @@ class InspectorPanel extends StatelessWidget {
     );
   }
 
-  Widget buildBody(ProjectController c, AudioClip clip) {
+  Widget buildBody(BuildContext context, ProjectController c, AudioClip clip) {
     final fadeMax =
         (clip.durationMs.toDouble() / 2).clamp(500.0, 10000.0).toDouble();
     Widget slider({
@@ -122,6 +125,7 @@ class InspectorPanel extends StatelessWidget {
                 info('Início', formatMs(clip.startMs)),
                 info('Origem',
                     '${shortTime(clip.inMs)}–${shortTime(clip.outMs)}'),
+                BpmBadge(path: clip.path, speed: clip.speed),
               ],
             ),
           ),
@@ -133,6 +137,41 @@ class InspectorPanel extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Wrap(spacing: 12, runSpacing: 6, children: [
+                  AppButton(
+                    label: 'Aparar silêncio',
+                    icon: Icons.content_cut,
+                    onPressed: () async {
+                      final ok = await c.trimClipSilence(clip.id);
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text(ok
+                            ? 'Silêncio aparado.'
+                            : 'Nada para aparar neste trecho.'),
+                      ));
+                    },
+                  ),
+                  AppButton(
+                    label: 'Unir com o próximo',
+                    icon: Icons.auto_awesome,
+                    busy: c.smartBusy,
+                    onPressed: () => runSmartJoin(
+                      context,
+                      title: 'Unir com o próximo trecho',
+                      description:
+                          'O trecho seguinte da mesma faixa será alinhado nas batidas e misturado com este, sem cortes bruscos.',
+                      action: (o) => c.smartJoinPair(clip.id, o),
+                    ),
+                  ),
+                  AppButton(
+                    label: 'Restaurar efeitos',
+                    onPressed: () {
+                      c.beginEdit();
+                      c.updateClip(clip.id, (x) => x.resetEffects());
+                    },
+                  ),
+                ]),
+                const SizedBox(height: 8),
                 Wrap(
                   spacing: 30,
                   children: [
@@ -209,48 +248,135 @@ class InspectorPanel extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
-                  children: [
-                    ToggleChip(
-                      label: 'Reverter',
-                      selected: clip.reversed,
-                      onChanged: (v) {
-                        c.beginEdit();
-                        c.updateClip(clip.id, (x) => x.copyWith(reversed: v));
-                      },
-                    ),
-                    ToggleChip(
-                      label: 'Normalizar',
-                      selected: clip.normalize,
-                      onChanged: (v) {
-                        c.beginEdit();
-                        c.updateClip(clip.id, (x) => x.copyWith(normalize: v));
-                      },
-                    ),
-                    ToggleChip(
-                      label: 'Silenciar',
-                      selected: clip.muted,
-                      onChanged: (v) {
-                        c.beginEdit();
-                        c.updateClip(clip.id, (x) => x.copyWith(muted: v));
-                      },
-                    ),
-                    AppButton(
-                      label: 'Restaurar efeitos',
-                      onPressed: () {
-                        c.beginEdit();
-                        c.updateClip(clip.id, (x) => x.resetEffects());
-                      },
-                    ),
-                  ],
-                ),
+                Wrap(spacing: 12, runSpacing: 6, children: [
+                  ToggleChip(
+                    label: 'Reverter',
+                    selected: clip.reversed,
+                    onChanged: (v) {
+                      c.beginEdit();
+                      c.updateClip(clip.id, (x) => x.copyWith(reversed: v));
+                    },
+                  ),
+                  ToggleChip(
+                    label: 'Normalizar',
+                    selected: clip.normalize,
+                    onChanged: (v) {
+                      c.beginEdit();
+                      c.updateClip(clip.id, (x) => x.copyWith(normalize: v));
+                    },
+                  ),
+                  ToggleChip(
+                    label: 'Silenciar',
+                    selected: clip.muted,
+                    onChanged: (v) {
+                      c.beginEdit();
+                      c.updateClip(clip.id, (x) => x.copyWith(muted: v));
+                    },
+                  ),
+                  ToggleChip(
+                    label: 'Fade suave',
+                    selected: clip.fadeShape == 1,
+                    onChanged: (v) {
+                      c.beginEdit();
+                      c.updateClip(
+                          clip.id, (x) => x.copyWith(fadeShape: v ? 1 : 0));
+                    },
+                  ),
+                ]),
               ],
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+class BpmBadge extends StatefulWidget {
+  final String path;
+  final double speed;
+
+  const BpmBadge({super.key, required this.path, required this.speed});
+
+  @override
+  State<BpmBadge> createState() => _BpmBadgeState();
+}
+
+class _BpmBadgeState extends State<BpmBadge> {
+  Timer? timer;
+  AudioAnalysis? analysis;
+  bool done = false;
+  String loadedPath = '';
+
+  @override
+  void initState() {
+    super.initState();
+    schedule();
+  }
+
+  @override
+  void didUpdateWidget(BpmBadge old) {
+    super.didUpdateWidget(old);
+    if (old.path != widget.path) schedule();
+  }
+
+  void schedule() {
+    timer?.cancel();
+    final path = widget.path;
+    setStateSafe(() {
+      analysis = null;
+      done = false;
+    });
+    timer = Timer(const Duration(milliseconds: 900), () async {
+      AudioAnalysis? result;
+      try {
+        result = await AudioAnalyzer.analyze(path);
+      } catch (_) {
+        result = null;
+      }
+      if (!mounted || widget.path != path) return;
+      setState(() {
+        analysis = result;
+        done = true;
+      });
+    });
+  }
+
+  void setStateSafe(VoidCallback fn) {
+    if (!mounted || !context.mounted) {
+      fn();
+      return;
+    }
+    fn();
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final a = analysis;
+    final bpm = !done
+        ? 'Analisando…'
+        : (a != null && a.reliable
+            ? '${(a.bpm * widget.speed).toStringAsFixed(0)}'
+            : 'indefinido');
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 3),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 58,
+            child: Text('BPM',
+                style: const TextStyle(fontSize: 12, color: AppColors.textDim)),
+          ),
+          Expanded(child: Text(bpm, style: monoStyle.copyWith(fontSize: 11.5))),
+        ],
+      ),
     );
   }
 }

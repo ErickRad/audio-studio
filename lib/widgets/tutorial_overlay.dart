@@ -114,7 +114,7 @@ List<TutorialStep> buildTutorialSteps() {
     TutorialStep(
       title: 'Ajustes ao vivo',
       body:
-          'Selecione um trecho e mude volume, velocidade, tom, graves, agudos e fades. As alterações valem na hora, sem parar a reprodução.',
+          'Selecione um trecho e mude volume, velocidade, tom, graves, agudos e fades. As alterações valem na hora. Use "Unir com o próximo" para uma transição suave nas batidas, ou deixe que a IA junte a faixa inteira.',
       icon: Icons.tune,
       tab: 2,
       target: TutorialKeys.editorInspector,
@@ -122,7 +122,7 @@ List<TutorialStep> buildTutorialSteps() {
     TutorialStep(
       title: 'Fila de conversão',
       body:
-          'Adicione arquivos de áudio ou vídeo do computador, ou músicas da biblioteca. A capa é mantida quando o destino é MP3.',
+          'Adicione arquivos de áudio do computador ou músicas da biblioteca. Verifique configurações antes de começar pra não perder a qualidade do áudio.',
       icon: Icons.swap_horiz,
       tab: 3,
       target: TutorialKeys.converterQueue,

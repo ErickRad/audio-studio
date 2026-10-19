@@ -135,7 +135,7 @@ class MoveToFolderDialog extends StatelessWidget {
                     context: context,
                     label: 'Sem pasta',
                     icon: Icons.inbox_outlined,
-                    note: single == '' ? 'Atual' : null,
+                    note: single == '' ? 'atual' : null,
                     onTap:
                         single == '' ? null : () => Navigator.pop(context, ''),
                   ),
@@ -144,7 +144,7 @@ class MoveToFolderDialog extends StatelessWidget {
                       context: context,
                       label: folder.name,
                       icon: Icons.folder_outlined,
-                      note: single == folder.id ? 'Atual' : null,
+                      note: single == folder.id ? 'atual' : null,
                       onTap: single == folder.id
                           ? null
                           : () => Navigator.pop(context, folder.id),

@@ -14,6 +14,7 @@ class AudioClip {
   final double treble;
   final int fadeInMs;
   final int fadeOutMs;
+  final int fadeShape;
   final bool reversed;
   final bool normalize;
   final bool muted;
@@ -34,6 +35,7 @@ class AudioClip {
     this.treble = 0,
     this.fadeInMs = 0,
     this.fadeOutMs = 0,
+    this.fadeShape = 0,
     this.reversed = false,
     this.normalize = false,
     this.muted = false,
@@ -55,6 +57,7 @@ class AudioClip {
     double? treble,
     int? fadeInMs,
     int? fadeOutMs,
+    int? fadeShape,
     bool? reversed,
     bool? normalize,
     bool? muted,
@@ -75,6 +78,7 @@ class AudioClip {
       treble: treble ?? this.treble,
       fadeInMs: fadeInMs ?? this.fadeInMs,
       fadeOutMs: fadeOutMs ?? this.fadeOutMs,
+      fadeShape: fadeShape ?? this.fadeShape,
       reversed: reversed ?? this.reversed,
       normalize: normalize ?? this.normalize,
       muted: muted ?? this.muted,
@@ -108,6 +112,7 @@ class AudioClip {
         'treble': treble,
         'fadeInMs': fadeInMs,
         'fadeOutMs': fadeOutMs,
+        'fadeShape': fadeShape,
         'reversed': reversed,
         'normalize': normalize,
         'muted': muted,
@@ -129,6 +134,7 @@ class AudioClip {
         treble: (json['treble'] as num).toDouble(),
         fadeInMs: json['fadeInMs'] as int,
         fadeOutMs: json['fadeOutMs'] as int,
+        fadeShape: (json['fadeShape'] as int?) ?? 0,
         reversed: json['reversed'] as bool,
         normalize: json['normalize'] as bool,
         muted: json['muted'] as bool,

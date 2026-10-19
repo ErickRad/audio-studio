@@ -12,11 +12,15 @@ class PreviewService {
   final ValueNotifier<String?> currentId = ValueNotifier<String?>(null);
   final ValueNotifier<String?> loadingId = ValueNotifier<String?>(null);
   int ticket = 0;
+  List<({String id, String path})> queue = [];
+  int queueIndex = -1;
+  final ValueNotifier<bool> queueActive = ValueNotifier<bool>(false);
 
   PreviewService._() {
     player.playerStateStream.listen((state) {
       if (state.processingState == ProcessingState.completed) {
         currentId.value = null;
+        if (queueActive.value) unawaited(next());
       }
     });
     player.playbackEventStream.listen((_) {},
@@ -32,7 +36,9 @@ class PreviewService {
     String? url,
     String? filePath,
     Future<String> Function()? urlResolver,
+    bool fromQueue = false,
   }) async {
+    if (!fromQueue) endQueue();
     if (currentId.value == id) {
       await stop();
       return null;
@@ -75,7 +81,46 @@ class PreviewService {
     }
   }
 
+  void endQueue() {
+    queue = [];
+    queueIndex = -1;
+    queueActive.value = false;
+  }
+
+  Future<void> playQueue(
+    List<({String id, String path})> items, {
+    bool shuffle = false,
+  }) async {
+    if (items.isEmpty) return;
+    final list = [...items];
+    if (shuffle) list.shuffle();
+    queue = list;
+    queueIndex = -1;
+    queueActive.value = true;
+    await next();
+  }
+
+  Future<void> next() async {
+    if (!queueActive.value) return;
+    var tries = 0;
+    while (queueIndex + 1 < queue.length && tries < queue.length) {
+      queueIndex++;
+      tries++;
+      final item = queue[queueIndex];
+      final error = await toggle(item.id, filePath: item.path, fromQueue: true);
+      if (error == null) return;
+    }
+    endQueue();
+  }
+
+  Future<void> previous() async {
+    if (!queueActive.value || queue.isEmpty) return;
+    queueIndex = (queueIndex - 2).clamp(-1, queue.length).toInt();
+    await next();
+  }
+
   Future<void> stop() async {
+    endQueue();
     ticket++;
     currentId.value = null;
     loadingId.value = null;

@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../state/project_controller.dart';
 import '../theme/app_theme.dart';
 import '../utils.dart';
+import 'smart_join_dialog.dart';
 import 'ui_kit.dart';
 
 class TransportBar extends StatelessWidget {
@@ -114,6 +115,24 @@ class TransportBar extends StatelessWidget {
                       ),
                     ),
                     const VDivider(),
+                    ToolButton(
+                      icon: Icons.auto_awesome,
+                      tooltip:
+                          'União suave da faixa ativa (análise de batidas)',
+                      busy: c.smartBusy,
+                      onPressed: c.smartBusy ||
+                              c.activeTrack >= c.tracks.length ||
+                              c.tracks[c.activeTrack].clips.length < 2
+                          ? null
+                          : () => runSmartJoin(
+                                context,
+                                title: 'União suave da faixa',
+                                description:
+                                    'Os trechos da faixa ativa serão analisados e encadeados em faixas alternadas, com cortes nas batidas e transição de potência constante.',
+                                action: (o) =>
+                                    c.smartJoinTrack(c.activeTrack, o),
+                              ),
+                    ),
                     ToolButton(
                       icon: Icons.content_cut,
                       tooltip: 'Dividir no cursor (S)',

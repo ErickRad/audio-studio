@@ -7,6 +7,7 @@ import '../services/download_service.dart';
 import '../services/app_log.dart';
 import '../services/jamendo_service.dart';
 import '../services/preview_service.dart';
+import '../services/settings_service.dart';
 import '../services/youtube_service.dart';
 import '../state/project_controller.dart';
 import '../theme/app_theme.dart';
@@ -37,6 +38,18 @@ class _SearchScreenState extends State<SearchScreen> {
   bool loading = false;
   bool searched = false;
   String? error;
+  List<String> history = [];
+  int sortMode = 0;
+  int durationFilter = 0;
+  bool bulkRunning = false;
+
+  @override
+  void initState() {
+    super.initState();
+    SettingsService.searchHistory().then((h) {
+      if (mounted) setState(() => history = h);
+    });
+  }
 
   @override
   void dispose() {
@@ -50,6 +63,10 @@ class _SearchScreenState extends State<SearchScreen> {
     final query = queryController.text.trim();
     if (query.isEmpty || loading) return;
     FocusScope.of(context).unfocus();
+    history.remove(query);
+    history.insert(0, query);
+    if (history.length > 12) history = history.sublist(0, 12);
+    SettingsService.saveSearchHistory(history);
     setState(() {
       loading = true;
       error = null;
@@ -78,6 +95,48 @@ class _SearchScreenState extends State<SearchScreen> {
     } finally {
       if (mounted) setState(() => loading = false);
     }
+  }
+
+  bool inLibrary(ProjectController c, SearchResult r) {
+    if (done.contains(r.key)) return true;
+    final title = r.title.trim().toLowerCase();
+    final artist = r.artist.trim().toLowerCase();
+    return c.library.any((i) =>
+        i.title.trim().toLowerCase() == title &&
+        i.artist.trim().toLowerCase() == artist);
+  }
+
+  List<SearchResult> visibleResults() {
+    final list = results.where((r) {
+      final minutes = r.durationMs / 60000;
+      switch (durationFilter) {
+        case 1:
+          return minutes < 4;
+        case 2:
+          return minutes >= 4 && minutes <= 10;
+        case 3:
+          return minutes > 10;
+      }
+      return true;
+    }).toList();
+    if (sortMode == 1) {
+      list.sort((a, b) => a.durationMs.compareTo(b.durationMs));
+    } else if (sortMode == 2) {
+      list.sort((a, b) => b.durationMs.compareTo(a.durationMs));
+    }
+    return list;
+  }
+
+  Future<void> downloadAll(List<SearchResult> targets) async {
+    if (bulkRunning) return;
+    setState(() => bulkRunning = true);
+    for (final r in targets) {
+      if (!mounted) break;
+      if (!bulkRunning) break;
+      if (progress.containsKey(r.key) || done.contains(r.key)) continue;
+      await download(r);
+    }
+    if (mounted) setState(() => bulkRunning = false);
   }
 
   Future<void> download(SearchResult result) async {
@@ -181,6 +240,119 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
+  Widget buildHistory() {
+    if (history.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                'BUSCAS RECENTES',
+                style: TextStyle(
+                  fontSize: 10.5,
+                  letterSpacing: 0.8,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textDim,
+                ),
+              ),
+              const SizedBox(width: 6),
+              ToolButton(
+                icon: Icons.delete_sweep_outlined,
+                tooltip: 'Limpar histórico',
+                iconSize: 16,
+                onPressed: () {
+                  setState(() => history = []);
+                  SettingsService.saveSearchHistory([]);
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final h in history)
+                ActionChip(
+                  label: Text(h, style: const TextStyle(fontSize: 12)),
+                  backgroundColor: AppColors.raised,
+                  side: const BorderSide(color: AppColors.line),
+                  onPressed: () {
+                    queryController.text = h;
+                    search();
+                  },
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildFilterBar(List<SearchResult> visible, ProjectController c) {
+    final pending = visible.where((r) => !inLibrary(c, r)).toList();
+    return Container(
+      height: 44,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: const BoxDecoration(
+        color: AppColors.panel,
+        border: Border(bottom: BorderSide(color: AppColors.line)),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 150,
+            child: AppDropdown<int>(
+              value: sortMode,
+              items: const [
+                (0, 'Relevância'),
+                (1, 'Mais curtas'),
+                (2, 'Mais longas'),
+              ],
+              onChanged: (v) => setState(() => sortMode = v),
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 150,
+            child: AppDropdown<int>(
+              value: durationFilter,
+              items: const [
+                (0, 'Qualquer duração'),
+                (1, 'Até 4 min'),
+                (2, '4 a 10 min'),
+                (3, 'Mais de 10 min'),
+              ],
+              onChanged: (v) => setState(() => durationFilter = v),
+            ),
+          ),
+          const Spacer(),
+          Text(
+            '${visible.length} de ${results.length}',
+            style: const TextStyle(fontSize: 12, color: AppColors.textDim),
+          ),
+          const SizedBox(width: 10),
+          if (bulkRunning)
+            AppButton(
+              label: 'Cancelar downloads',
+              onPressed: () => setState(() => bulkRunning = false),
+            )
+          else
+            AppButton(
+              label: 'Baixar todas (${pending.length})',
+              icon: Icons.download,
+              onPressed: pending.isEmpty ? null : () => downloadAll(pending),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget buildMessage(String text, {Color color = AppColors.textDim}) {
     return Center(
       child: Padding(
@@ -198,21 +370,40 @@ class _SearchScreenState extends State<SearchScreen> {
     if (error != null) return buildMessage(error!, color: AppColors.danger);
     if (results.isEmpty) {
       if (loading) return buildMessage('Buscando…');
-      return buildMessage(
-        searched
-            ? 'Nenhum resultado encontrado.'
-            : 'Digite o nome da música, do artista ou cole um link do YouTube.',
+      if (searched) return buildMessage('Nenhum resultado encontrado.');
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          buildMessage(
+              'Digite o nome da música, do artista ou cole um link do YouTube.'),
+          buildHistory(),
+        ],
       );
     }
 
+    final c = context.read<ProjectController>();
+    final visible = visibleResults();
+    return Column(
+      children: [
+        buildFilterBar(visible, c),
+        Expanded(
+          child: visible.isEmpty
+              ? buildMessage('Nenhum resultado com esse filtro.')
+              : buildResultsPane(visible, c),
+        ),
+      ],
+    );
+  }
+
+  Widget buildResultsPane(List<SearchResult> visible, ProjectController c) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(
           child: ListView.builder(
-            itemCount: results.length,
+            itemCount: visible.length,
             itemExtent: 54,
-            itemBuilder: (context, i) => buildRow(results[i]),
+            itemBuilder: (context, i) => buildRow(visible[i], c),
           ),
         ),
         if (selectedResult != null) ...[
@@ -241,24 +432,34 @@ class _SearchScreenState extends State<SearchScreen> {
       valueListenable: PreviewService.instance.currentId,
       builder: (_, current, __) => ValueListenableBuilder<String?>(
         valueListenable: PreviewService.instance.loadingId,
-        builder: (_, loadingId, __) => ToolButton(
-          icon: current == r.key ? Icons.stop : Icons.play_arrow,
-          tooltip: loadingId == r.key
-              ? 'Carregando…'
-              : (current == r.key ? 'Parar prévia' : 'Ouvir prévia'),
-          busy: loadingId == r.key,
-          onPressed: () => preview(r),
+        builder: (_, loadingId, __) => 
+        Container (
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(4),
+            color: AppColors.raised,
+            border: Border.all(color: AppColors.line),
+          ),
+          child: ToolButton(
+            icon: current == r.key ? Icons.stop : Icons.play_arrow,
+            tooltip: loadingId == r.key
+                ? 'Carregando…'
+                : (current == r.key ? 'Parar prévia' : 'Ouvir prévia'),
+            busy: loadingId == r.key,
+            onPressed: () => preview(r),
+          ),
         ),
-      ),
+      )
     );
   }
 
-  Widget buildRow(SearchResult r) {
+  Widget buildRow(SearchResult r, ProjectController c) {
     final busy = progress.containsKey(r.key);
+    final owned = inLibrary(c, r);
     final percent = ((progress[r.key] ?? 0) * 100).round();
+    
     final subtitle = busy
         ? '${stage[r.key] ?? ''}${percent > 0 && percent < 100 ? ' · $percent%' : ''}'
-        : '${r.artist} · ${shortTime(r.durationMs)}';
+        : '${r.artist} · ${shortTime(r.durationMs)}${owned ? ' · Na biblioteca' : ''}';
     return MouseRegion(
       onEnter: (_) {
         if (r.source != SearchSource.youtube) return;
@@ -269,11 +470,11 @@ class _SearchScreenState extends State<SearchScreen> {
         );
       },
       onExit: (_) => hoverTimer?.cancel(),
-      child: buildMediaRow(r, busy, subtitle),
+      child: buildMediaRow(r, busy, subtitle, owned),
     );
   }
 
-  Widget buildMediaRow(SearchResult r, bool busy, String subtitle) {
+  Widget buildMediaRow(SearchResult r, bool busy, String subtitle, bool owned) {
     return MediaRow(
       leading: ThumbBox(imageUrl: r.imageUrl),
       title: r.title,
@@ -283,10 +484,10 @@ class _SearchScreenState extends State<SearchScreen> {
           ? progress[r.key]
           : null,
       onTap: () => setState(() => selectedResult = r),
-      onDoubleTap: done.contains(r.key) || busy ? null : () => download(r),
+      onDoubleTap: owned || busy ? null : () => download(r),
       actions: [
         buildPreviewButton(r),
-        if (done.contains(r.key))
+        if (owned)
           const SizedBox(
             width: 30,
             height: 30,
@@ -400,7 +601,6 @@ class _SearchScreenState extends State<SearchScreen> {
                   detailField('Fonte',
                       r.source == SearchSource.youtube ? 'YouTube' : 'Jamendo'),
                   detailField('Duração', shortTime(r.durationMs)),
-                  detailField('ID da mídia', r.id),
                   detailField('Chave interna', r.key),
                   detailField('URL de stream', r.streamUrl),
                   detailField('URL da imagem', r.imageUrl),
@@ -434,6 +634,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<ProjectController>();
     return Column(
       children: [
         buildToolbar(),

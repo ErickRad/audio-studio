@@ -421,7 +421,7 @@ class ToggleChip extends StatelessWidget {
               label,
               style: TextStyle(
                 fontSize: 12,
-                color: selected ? AppColors.text : AppColors.textDim,
+                color: AppColors.text,
               ),
             ),
           ),
